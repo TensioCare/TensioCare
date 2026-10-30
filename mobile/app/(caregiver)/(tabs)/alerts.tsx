@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { NotificationCard } from '@/components/NotificationCard';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui';
 import { spacing } from '@/constants/theme';
 import { notificationsApi } from '@/lib/api';
+import { showAlert } from '@/lib/dialogs';
 import type { NotificationItem } from '@/lib/types';
 
 type Filter = 'all' | 'unread';
@@ -51,7 +52,7 @@ export default function CaregiverAlertsScreen() {
     onSuccess: invalidate,
     onSettled: () => setAcknowledgingId(null),
     onError: (error) => {
-      Alert.alert(
+      showAlert(
         'Could not acknowledge',
         error instanceof Error ? error.message : 'Please try again.',
       );

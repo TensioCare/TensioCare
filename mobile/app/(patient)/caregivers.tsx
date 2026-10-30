@@ -3,7 +3,6 @@ import * as Clipboard from 'expo-clipboard';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -29,6 +28,7 @@ import {
 } from '@/components/ui';
 import { colors, radius, spacing } from '@/constants/theme';
 import { ApiError, patientsApi } from '@/lib/api';
+import { confirmAction, showAlert } from '@/lib/dialogs';
 import type { CaregiverCode } from '@/lib/types';
 
 interface CaregiverForm {
@@ -114,7 +114,7 @@ export default function PatientCaregiversScreen() {
       setCodeCard({ title: 'New caregiver code', code });
     },
     onError: (error) => {
-      Alert.alert(
+      showAlert(
         'Could not create a code',
         error instanceof Error ? error.message : 'Please try again.',
       );
@@ -125,7 +125,7 @@ export default function PatientCaregiversScreen() {
     mutationFn: (caregiverId: number) => patientsApi.removeCaregiver(caregiverId),
     onSuccess: invalidate,
     onError: (error) => {
-      Alert.alert(
+      showAlert(
         'Could not remove caregiver',
         error instanceof Error ? error.message : 'Please try again.',
       );
@@ -139,18 +139,14 @@ export default function PatientCaregiversScreen() {
   }
 
   function confirmRemove(caregiverId: number, name: string) {
-    Alert.alert(
-      `Remove ${name}?`,
-      'This deletes the caregiver account, their access, and their sessions. They will need a new code to reconnect.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () => remove.mutate(caregiverId),
-        },
-      ],
-    );
+    confirmAction({
+      title: `Remove ${name}?`,
+      message:
+        'This deletes the caregiver account, their access, and their sessions. They will need a new code to reconnect.',
+      confirmLabel: 'Remove',
+      destructive: true,
+      onConfirm: () => remove.mutate(caregiverId),
+    });
   }
 
   if (caregivers.isLoading && !caregivers.data) {

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Switch, View } from 'react-native';
+import { StyleSheet, Switch, View } from 'react-native';
 
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { TimeListEditor } from '@/components/TimeListEditor';
@@ -19,6 +19,7 @@ import {
 } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
 import { patientsApi, remindersApi } from '@/lib/api';
+import { showAlert } from '@/lib/dialogs';
 import { daysLabel, formatDateTime, formatTime } from '@/lib/format';
 import { deviceTimezone } from '@/lib/time';
 
@@ -92,13 +93,13 @@ export default function PatientPlanScreen() {
       void queryClient.invalidateQueries({ queryKey: ['profile'] });
       void queryClient.invalidateQueries({ queryKey: ['assessment'] });
       void queryClient.invalidateQueries({ queryKey: ['adherence'] });
-      Alert.alert(
+      showAlert(
         'Plan saved',
         'New measurement windows will be created from your updated plan.',
       );
     },
     onError: (error) => {
-      Alert.alert(
+      showAlert(
         'Could not save plan',
         error instanceof Error ? error.message : 'Please try again.',
       );

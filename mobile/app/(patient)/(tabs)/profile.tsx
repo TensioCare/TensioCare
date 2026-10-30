@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ScreenHeader } from '@/components/ScreenHeader';
 import {
@@ -21,6 +21,7 @@ import {
 import { colors, spacing } from '@/constants/theme';
 import { patientsApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { confirmAction, showAlert } from '@/lib/dialogs';
 import {
   daysLabel,
   formatClockTime,
@@ -94,10 +95,10 @@ export default function PatientProfileScreen() {
       void queryClient.invalidateQueries({ queryKey: ['profile'] });
       void queryClient.invalidateQueries({ queryKey: ['assessment'] });
       void queryClient.invalidateQueries({ queryKey: ['readings'] });
-      Alert.alert('Profile saved', 'Your care details have been updated.');
+      showAlert('Profile saved', 'Your care details have been updated.');
     },
     onError: (error) => {
-      Alert.alert(
+      showAlert(
         'Could not save profile',
         error instanceof Error ? error.message : 'Please try again.',
       );
@@ -105,16 +106,13 @@ export default function PatientProfileScreen() {
   });
 
   async function confirmSignOut() {
-    Alert.alert('Sign out?', 'Your data stays safely in your account.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign out',
-        style: 'destructive',
-        onPress: () => {
-          void signOut();
-        },
-      },
-    ]);
+    confirmAction({
+      title: 'Sign out?',
+      message: 'Your data stays safely in your account.',
+      confirmLabel: 'Sign out',
+      destructive: true,
+      onConfirm: () => void signOut(),
+    });
   }
 
   if (profile.isLoading && !profile.data) {

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { ScreenHeader } from '@/components/ScreenHeader';
 import {
@@ -17,6 +17,7 @@ import {
 import { colors, spacing } from '@/constants/theme';
 import { caregiversApi } from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
+import { confirmAction, showAlert } from '@/lib/dialogs';
 import { fullName, initials } from '@/lib/format';
 
 export default function CaregiverProfileScreen() {
@@ -67,10 +68,10 @@ export default function CaregiverProfileScreen() {
     onSuccess: async () => {
       await refreshUser();
       void queryClient.invalidateQueries({ queryKey: ['caregiver'] });
-      Alert.alert('Profile saved', 'Your contact details have been updated.');
+      showAlert('Profile saved', 'Your contact details have been updated.');
     },
     onError: (error) => {
-      Alert.alert(
+      showAlert(
         'Could not save profile',
         error instanceof Error ? error.message : 'Please try again.',
       );
@@ -95,10 +96,10 @@ export default function CaregiverProfileScreen() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['caregiver'] });
-      Alert.alert('Alert settings saved', 'Your place in the care circle has been updated.');
+      showAlert('Alert settings saved', 'Your place in the care circle has been updated.');
     },
     onError: (error) => {
-      Alert.alert(
+      showAlert(
         'Could not save alert settings',
         error instanceof Error ? error.message : 'Please try again.',
       );
@@ -114,7 +115,7 @@ export default function CaregiverProfileScreen() {
       await signOut();
     },
     onError: (error) => {
-      Alert.alert(
+      showAlert(
         'Could not leave the care circle',
         error instanceof Error ? error.message : 'Please try again.',
       );
@@ -123,18 +124,14 @@ export default function CaregiverProfileScreen() {
 
   function confirmLeave() {
     if (!patient) return;
-    Alert.alert(
-      'Leave this care circle?',
-      'This deletes your caregiver account and access. The patient would need to add you again with a new code.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: () => leave.mutate(),
-        },
-      ],
-    );
+    confirmAction({
+      title: 'Leave this care circle?',
+      message:
+        'This deletes your caregiver account and access. The patient would need to add you again with a new code.',
+      confirmLabel: 'Leave',
+      destructive: true,
+      onConfirm: () => leave.mutate(),
+    });
   }
 
   if (patients.isLoading && !patients.data) {
@@ -272,10 +269,13 @@ export default function CaregiverProfileScreen() {
       <Button
         title="Sign out"
         onPress={() => {
-          Alert.alert('Sign out?', 'You can sign back in with the same code.', [
-            { text: 'Cancel', style: 'cancel' },
-            { text: 'Sign out', style: 'destructive', onPress: () => void signOut() },
-          ]);
+          confirmAction({
+            title: 'Sign out?',
+            message: 'You can sign back in with the same code.',
+            confirmLabel: 'Sign out',
+            destructive: true,
+            onConfirm: () => void signOut(),
+          });
         }}
         variant="secondary"
         icon="log-out-outline"

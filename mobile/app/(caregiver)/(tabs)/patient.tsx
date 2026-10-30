@@ -140,7 +140,7 @@ export default function CaregiverPatientScreen() {
         <CareRow
           label="Target"
           value={
-            patient.target_systolic !== null && patient.target_diastolic !== null
+            patient.target_systolic != null && patient.target_diastolic != null
               ? `${patient.target_systolic}/${patient.target_diastolic} mmHg`
               : 'Not set'
           }
@@ -153,7 +153,7 @@ export default function CaregiverPatientScreen() {
         <CareRow
           label="Measurement plan"
           value={
-            patient.measurement_times.length
+            patient.measurement_times?.length
               ? patient.measurement_times.map(formatClockTime).join(' · ')
               : 'Not set'
           }

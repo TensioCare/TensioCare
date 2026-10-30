@@ -187,7 +187,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const signOut = useCallback(async () => {
     const refreshToken = await storage.getItem(storageKeys.refreshToken);
     if (refreshToken) {
-      await authApi.logout(refreshToken).catch(() => undefined);
+      // Revoke server-side in the background. Local sign-out must not wait for
+      // the network or appear stuck when the API is slow/unreachable.
+      void authApi.logout(refreshToken).catch(() => undefined);
     }
     await clearSession();
   }, [clearSession]);

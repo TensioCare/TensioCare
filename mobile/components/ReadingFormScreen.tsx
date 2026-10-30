@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { DateTimePickerModal } from '@/components/DateTimePickerModal';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui';
 import { colors, spacing } from '@/constants/theme';
 import { readingsApi } from '@/lib/api';
+import { confirmAction, showAlert } from '@/lib/dialogs';
 import { formatDate, formatTime } from '@/lib/format';
 import type { Arm, Position, ReadingCreatePayload } from '@/lib/types';
 
@@ -155,7 +156,7 @@ export function ReadingFormScreen({ readingId }: { readingId?: number }) {
       router.back();
     },
     onError: (error) => {
-      Alert.alert(
+      showAlert(
         'Could not delete reading',
         error instanceof Error ? error.message : 'Please try again.',
       );
@@ -163,18 +164,14 @@ export function ReadingFormScreen({ readingId }: { readingId?: number }) {
   });
 
   function confirmDelete() {
-    Alert.alert(
-      'Delete this reading?',
-      'This cannot be undone. Your averages and adherence will be recalculated.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => remove.mutate(),
-        },
-      ],
-    );
+    confirmAction({
+      title: 'Delete this reading?',
+      message:
+        'This cannot be undone. Your averages and adherence will be recalculated.',
+      confirmLabel: 'Delete',
+      destructive: true,
+      onConfirm: () => remove.mutate(),
+    });
   }
 
   if (isEdit && readings.isLoading && !readings.data) {
