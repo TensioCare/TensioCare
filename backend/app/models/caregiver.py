@@ -113,3 +113,35 @@ class CaregiverPatient(Base):
     @property
     def last_name(self) -> str:
         return self.patient.user.last_name
+
+    @property
+    def diagnosis(self) -> str | None:
+        return self.patient.diagnosis
+
+    @property
+    def medical_history(self) -> str | None:
+        return self.patient.medical_history
+
+    @property
+    def allergies(self) -> str | None:
+        return self.patient.allergies
+
+    @property
+    def medications(self) -> str | None:
+        return self.patient.medications
+
+    @property
+    def target_systolic(self) -> int | None:
+        return self.patient.target_systolic
+
+    @property
+    def target_diastolic(self) -> int | None:
+        return self.patient.target_diastolic
+
+    @property
+    def measurement_times(self) -> list[str]:
+        return self.patient.measurement_times or []
+
+    @property
+    def timezone(self) -> str:
+        return self.patient.timezone

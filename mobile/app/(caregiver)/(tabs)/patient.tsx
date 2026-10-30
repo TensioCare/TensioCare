@@ -17,7 +17,13 @@ import {
 } from '@/components/ui';
 import { colors, riskColors, spacing } from '@/constants/theme';
 import { caregiversApi } from '@/lib/api';
-import { formatPercent, fullName, riskLabel, trendLabel } from '@/lib/format';
+import {
+  formatClockTime,
+  formatPercent,
+  fullName,
+  riskLabel,
+  trendLabel,
+} from '@/lib/format';
 
 export default function CaregiverPatientScreen() {
   const patients = useQuery({
@@ -128,6 +134,32 @@ export default function CaregiverPatientScreen() {
         </Card>
       ) : null}
 
+      <SectionHeader title="Care details" />
+      <Card style={{ gap: spacing.md }}>
+        <CareRow label="Diagnosis" value={patient.diagnosis || 'Not added'} />
+        <CareRow
+          label="Target"
+          value={
+            patient.target_systolic !== null && patient.target_diastolic !== null
+              ? `${patient.target_systolic}/${patient.target_diastolic} mmHg`
+              : 'Not set'
+          }
+        />
+        <CareRow label="Allergies" value={patient.allergies || 'None recorded'} />
+        <CareRow label="Medications" value={patient.medications || 'None recorded'} />
+        {patient.medical_history ? (
+          <CareRow label="Medical history" value={patient.medical_history} />
+        ) : null}
+        <CareRow
+          label="Measurement plan"
+          value={
+            patient.measurement_times.length
+              ? patient.measurement_times.map(formatClockTime).join(' · ')
+              : 'Not set'
+          }
+        />
+      </Card>
+
       {analysis ? (
         <Card style={{ gap: spacing.md }}>
           <View style={styles.spread}>
@@ -232,6 +264,19 @@ export default function CaregiverPatientScreen() {
         </Card>
       )}
     </ScrollScreen>
+  );
+}
+
+function CareRow({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={{ gap: 2 }}>
+      <AppText variant="caption" tone="muted">
+        {label}
+      </AppText>
+      <AppText variant="body" tone="soft">
+        {value}
+      </AppText>
+    </View>
   );
 }
 

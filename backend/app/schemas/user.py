@@ -31,6 +31,14 @@ class LinkedPatientRead(BaseModel):
     priority: int
     notify_after_minutes: int
     is_primary_contact: bool
+    diagnosis: str | None = None
+    medical_history: str | None = None
+    allergies: str | None = None
+    medications: str | None = None
+    target_systolic: int | None = None
+    target_diastolic: int | None = None
+    measurement_times: list[str] = Field(default_factory=list)
+    timezone: str = "UTC"
 
 
 class PatientCaregiverRead(BaseModel):

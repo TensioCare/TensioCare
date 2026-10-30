@@ -173,6 +173,18 @@ def test_caregiver_can_read_linked_patient_only(client: TestClient) -> None:
     caregiver = caregiver_login(
         client, add_caregiver(client, patient["access_token"])["code"]
     )
+    linked = client.get(
+        "/api/v1/caregivers/me/patients",
+        headers=auth(caregiver["access_token"]),
+    )
+    assert linked.status_code == 200
+    linked_patient = linked.json()[0]
+    assert linked_patient["diagnosis"] == "Hypertension stage 1"
+    assert linked_patient["allergies"] == "Penicillin"
+    assert linked_patient["medications"] == "Amlodipine 5mg"
+    assert linked_patient["target_systolic"] == 130
+    assert linked_patient["target_diastolic"] == 80
+
     readings = client.get(
         f"/api/v1/caregivers/me/patients/{patient_profile_id}/readings",
         headers=auth(caregiver["access_token"]),

@@ -36,6 +36,14 @@ export interface LinkedPatient {
   priority: number;
   notify_after_minutes: number;
   is_primary_contact: boolean;
+  diagnosis: string | null;
+  medical_history: string | null;
+  allergies: string | null;
+  medications: string | null;
+  target_systolic: number | null;
+  target_diastolic: number | null;
+  measurement_times: string[];
+  timezone: string;
 }
 
 export interface CaregiverProfile {
