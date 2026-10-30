@@ -13,6 +13,7 @@ from datetime import datetime
 
 from app.core.timeutils import to_naive_utc, utcnow
 from app.db.session import SessionLocal
+from app.jobs.cli import add_clock_arguments, ensure_simulation_is_safe, parse_at
 from app.services.reminders import generate_windows, process_windows
 
 logger = logging.getLogger(__name__)
@@ -32,14 +33,11 @@ def run_once(now: datetime | None = None) -> dict[str, int]:
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     parser = argparse.ArgumentParser(description="Run one reminder/escalation cycle")
-    parser.add_argument(
-        "--at",
-        help="ISO datetime used as 'now' (useful to simulate a miss)",
-        default=None,
-    )
+    add_clock_arguments(parser)
     args = parser.parse_args()
 
-    at = datetime.fromisoformat(args.at.replace("Z", "+00:00")) if args.at else None
+    at = parse_at(args.at)
+    ensure_simulation_is_safe(at, job="the reminder job", force=args.force)
     print(run_once(at))
 
 

@@ -14,6 +14,7 @@ from datetime import datetime
 
 from app.core.timeutils import to_naive_utc, utcnow
 from app.db.session import SessionLocal
+from app.jobs.cli import add_clock_arguments, ensure_simulation_is_safe, parse_at
 from app.services.insights import send_daily_assessments
 
 logger = logging.getLogger(__name__)
@@ -33,14 +34,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Send daily high/critical risk notifications"
     )
-    parser.add_argument(
-        "--at",
-        help="ISO datetime used as 'now' (useful for testing)",
-        default=None,
-    )
+    add_clock_arguments(parser)
     args = parser.parse_args()
 
-    at = datetime.fromisoformat(args.at.replace("Z", "+00:00")) if args.at else None
+    at = parse_at(args.at)
+    ensure_simulation_is_safe(at, job="the daily-insight job", force=args.force)
     print(run_once(at))
 
 

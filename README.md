@@ -16,26 +16,46 @@ categories and shows averages, target compliance, trends and alerts.
 cd C:\Users\basse\Desktop\solvex
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
 Copy-Item .env.example .env
 ```
+
+If `python`, `uvicorn`, `pytest` or `ruff` are not on your shell `PATH`, use
+the explicit venv paths shown throughout this README (or run
+`.\scripts\run.ps1` / `.\scripts\test.ps1`, which never depend on `PATH`).
 
 Set `POSTGRES_PASSWORD` and `DATABASE_URL` in `.env` (they must use the same
 password), and generate a `SECRET_KEY`:
 
 ```powershell
-python -c "import secrets; print(secrets.token_urlsafe(48))"
+.\.venv\Scripts\python.exe -c "import secrets; print(secrets.token_urlsafe(48))"
 ```
 
-Start PostgreSQL and create the schema:
+Start PostgreSQL and apply the schema migrations:
 
 ```powershell
 docker compose up -d          # Postgres 17 on localhost:5432, data in a named volume
-uvicorn app.main:app --reload # creates the tables on startup
+.\scripts\migrate.ps1         # alembic upgrade head
+.\scripts\run.ps1             # uvicorn with the venv, reload enabled
 ```
 
-On macOS/Linux: `python3 -m venv .venv && source .venv/bin/activate`, the rest is
-identical.
+`docker compose up -d` starts only PostgreSQL and Adminer. To run the API in
+Docker too, build and start the optional `api` profile:
+
+```powershell
+docker compose --profile api up -d --build
+# API: http://127.0.0.1:8000/docs
+```
+
+On macOS/Linux:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-dev.txt
+alembic upgrade head
+uvicorn app.main:app --reload
+```
 
 Useful Docker commands:
 
@@ -47,12 +67,14 @@ docker compose down -v        # stop and delete the database volume
 ```
 
 Without Docker, point `DATABASE_URL` at any PostgreSQL server and install the
-driver: `pip install "psycopg[binary]"` (already in `requirements.txt`).
+driver: `.\.venv\Scripts\python.exe -m pip install "psycopg[binary]"` (already
+in `requirements.txt`).
 
 ## Run
 
 ```powershell
-uvicorn app.main:app --reload
+.\scripts\run.ps1
+# or: .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
 ```
 
 - Swagger UI: http://127.0.0.1:8000/docs (**Authorize** with a registered account)
@@ -260,8 +282,13 @@ upcoming reminder. Only the nearest open window is closed.
 
 The scheduler runs every 60 seconds inside the app (`ENABLE_SCHEDULER=true`).
 Saving an active schedule also creates the upcoming windows immediately, so the
-app can show them without waiting for the next tick. Set
-`ENABLE_SCHEDULER=false` when you want to drive the clock yourself.
+app can show them without waiting for the next tick.
+
+Set `ENABLE_SCHEDULER=false` for the API when you want to drive the clock
+yourself. The job CLI refuses to run with `--at` while
+`ENABLE_SCHEDULER=true`, because the live scheduler could process the same
+windows twice. Stop the API or disable its scheduler, then retry. `--force`
+exists only as an escape hatch when you know no scheduler is running.
 
 ### Try it without waiting
 
@@ -569,16 +596,53 @@ anything.
 ## Tests
 
 ```powershell
-pip install -r requirements-dev.txt
-pytest
-ruff check .
+.\scripts\test.ps1
+# or: .\.venv\Scripts\python.exe -m pytest -q
+#     .\.venv\Scripts\ruff.exe check app tests alembic
+#     .\.venv\Scripts\ruff.exe format --check app tests alembic
 ```
+
+The suite currently contains **52 tests** and runs against in-memory SQLite.
+
+## Database migrations
+
+The schema is versioned with Alembic; the app no longer calls
+`Base.metadata.create_all()` on startup.
+
+```powershell
+.\scripts\migrate.ps1                 # alembic upgrade head
+.\.venv\Scripts\alembic.exe current   # show the applied revision
+.\.venv\Scripts\alembic.exe check     # fail if models and migrations drift
+```
+
+After changing a model, generate and review a migration:
+
+```powershell
+.\.venv\Scripts\alembic.exe revision --autogenerate -m "describe change"
+.\.venv\Scripts\alembic.exe upgrade head
+```
+
+The first migration (`alembic/versions/8d3e9c2407b6_initial_schema.py`) creates
+all 11 application tables. `scripts/reset_db.py` still exists for a destructive
+development reset: it drops the schema and then runs `alembic upgrade head`.
+
+## CI and Docker
+
+- `.github/workflows/ci.yml` runs ruff, pytest, `alembic upgrade head` and
+  `alembic check` against PostgreSQL 17, then builds the API image.
+- `Dockerfile` runs as a non-root user and applies migrations before starting
+  uvicorn.
+- `docker compose --profile api up -d --build` starts PostgreSQL, Adminer and
+  the API.
 
 ## Structure
 
 ```
+alembic/
+  env.py               Loads app settings + metadata for migrations
+  versions/            Versioned schema changes
 app/
-  main.py              FastAPI app, CORS, tables on startup
+  main.py              FastAPI app, CORS, lifespan/scheduler
   core/config.py       Settings from .env / environment
   core/security.py     Argon2 hashing + JWT
   core/bp.py           AHA classification, trend logic (pure functions)
@@ -598,24 +662,29 @@ app/
   services/insights.py   Daily risk, 15-day report, rule-based assistant
   jobs/reminders.py    One cycle, runnable as a module with --at
   jobs/insights.py     Daily high/critical notification, same --at option
+  jobs/cli.py          Shared --at parsing + scheduler safety guard
   scheduler.py         APScheduler job (every 60s)
   api/deps.py          CurrentUser + role guards
   api/routes/          auth, patients, caregivers, readings, devices,
                        reminders, notifications, insights
 tests/                 pytest + TestClient (in-memory SQLite)
+scripts/               reset_db.py, run/test/migrate PowerShell helpers
+.github/workflows/     CI: lint, tests, migrations, Docker build
+Dockerfile             API image (runs migrations, then uvicorn)
 ```
 
 ## Notes
 
-- PostgreSQL 17 runs in Docker Compose; tables are created on startup. Because
-  there are no migrations yet, **reset the schema after changing models**:
-  `.\.venv\Scripts\python.exe scripts\reset_db.py` (drops and recreates the
-  tables in the running container, no volume reset needed), or
-  `docker compose down -v && docker compose up -d` (deletes all data), or add
-  Alembic before you have data worth keeping.
-- SQLite still works as a fallback (`DATABASE_URL=sqlite:///./solvex.db`).
-- Before production: add Alembic, set a strong `SECRET_KEY`, narrow
-  `CORS_ORIGINS`, and put device ingestion behind a per-device token.
+- PostgreSQL 17 runs in Docker Compose. Apply schema changes with Alembic
+  (`.\scripts\migrate.ps1`); the schema now includes `alembic_version` plus the
+  11 application tables. For a destructive development reset, run
+  `.\.venv\Scripts\python.exe scripts\reset_db.py` (drops the schema, then
+  applies migrations), or `docker compose down -v && docker compose up -d`.
+- SQLite still works as a fallback (`DATABASE_URL=sqlite:///./solvex.db`);
+  Alembic uses batch mode for SQLite.
+- Before production: set a strong `SECRET_KEY`, narrow `CORS_ORIGINS`, put
+  device ingestion behind a per-device token, and run migrations as a separate
+  deploy step rather than from every API replica.
 - The reminder scheduler runs inside the API process. With more than one
   uvicorn worker, move `app.jobs.reminders.run_once` to Celery beat (or run a
   single dedicated worker) so jobs are not executed twice.

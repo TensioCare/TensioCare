@@ -7,15 +7,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import models  # noqa: F401  (ensures models are registered on Base)
 from app.api.routes import api_router
 from app.core.config import settings
-from app.db.base import Base
-from app.db.session import engine
 from app.scheduler import shutdown_scheduler, start_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # For production, replace this with Alembic migrations.
-    Base.metadata.create_all(bind=engine)
+    # The schema is managed by Alembic. Run `alembic upgrade head` before
+    # starting the app (the Docker image and reset script do this for you).
     start_scheduler()
     yield
     shutdown_scheduler()

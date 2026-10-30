@@ -9,3 +9,4 @@ pwdlib[argon2]>=0.2,<1.0
 pyjwt>=2.9,<3.0
 python-multipart>=0.0.9,<1.0
 apscheduler>=3.10,<4.0
+alembic>=1.13,<2.0
