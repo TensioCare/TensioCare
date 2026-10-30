@@ -24,7 +24,7 @@ export function NotificationBridge() {
     return addNotificationResponseListener(() => {
       if (!user) return;
       if (user.role === 'caregiver') {
-        router.push('/(caregiver)/(tabs)/alerts');
+        router.push('/caregiver/alerts');
       } else {
         router.push('/(patient)/(tabs)/alerts');
       }

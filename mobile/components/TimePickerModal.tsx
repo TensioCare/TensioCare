@@ -6,6 +6,7 @@ import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, radius, spacing } from '@/constants/theme';
+import { WebTimeSheet } from './WebPickerSheet';
 import { AppText, Button } from './ui';
 
 export function TimePickerModal({
@@ -27,6 +28,19 @@ export function TimePickerModal({
   }, [value, visible]);
 
   if (!visible) return null;
+
+  if (Platform.OS === 'web') {
+    return (
+      <WebTimeSheet
+        visible={visible}
+        value={value}
+        title="Choose a time"
+        confirmLabel="Add time"
+        onClose={onClose}
+        onConfirm={onConfirm}
+      />
+    );
+  }
 
   if (Platform.OS === 'android') {
     return (

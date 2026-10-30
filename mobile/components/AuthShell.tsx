@@ -1,23 +1,25 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, radius, shadows, spacing } from '@/constants/theme';
+import { Brand } from '@/components/Brand';
+import { colors, fonts, spacing } from '@/constants/theme';
 import { AppText } from './ui';
 
 export function AuthShell({
-  eyebrow,
   title,
   subtitle,
+  onBack,
   children,
   footer,
 }: {
-  eyebrow?: string;
   title: string;
   subtitle: string;
+  onBack?: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  eyebrow?: string;
 }) {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -30,31 +32,41 @@ export function AuthShell({
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.brandRow}>
-            <View style={styles.logo}>
-              <Ionicons name="pulse" size={25} color={colors.onBrand} />
-            </View>
-            <View>
-              <AppText variant="subtitle">TensioCare</AppText>
-              <AppText variant="caption" tone="muted">
-                Blood pressure, together
+          {onBack ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Go back"
+              onPress={onBack}
+              hitSlop={10}
+              style={({ pressed }) => [styles.back, pressed && { opacity: 0.6 }]}
+            >
+              <Ionicons name="chevron-back" size={20} color={colors.muted} />
+              <AppText variant="bodyStrong" tone="muted">
+                Back
               </AppText>
-            </View>
-          </View>
+            </Pressable>
+          ) : (
+            <Brand size={40} />
+          )}
 
           <View style={styles.header}>
-            {eyebrow ? (
-              <AppText variant="label" tone="brand">
-                {eyebrow}
-              </AppText>
-            ) : null}
-            <AppText variant="display">{title}</AppText>
+            <AppText
+              style={{
+                fontFamily: fonts.bold,
+                fontSize: 24,
+                lineHeight: 30,
+                color: colors.brandDark,
+              }}
+            >
+              {title}
+            </AppText>
             <AppText variant="body" tone="muted">
               {subtitle}
             </AppText>
           </View>
 
-          <View style={styles.card}>{children}</View>
+          <View style={styles.form}>{children}</View>
+
           {footer ? <View style={styles.footer}>{footer}</View> : null}
         </ScrollView>
       </KeyboardAvoidingView>
@@ -67,28 +79,21 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.xxl,
-    gap: spacing.xxl,
+    gap: spacing.xl,
   },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  logo: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
-    backgroundColor: colors.brand,
+  back: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 2,
+    alignSelf: 'flex-start',
   },
   header: { gap: spacing.sm },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: radius.xl,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.lg,
-    ...shadows.raised,
-  },
-  footer: { alignItems: 'center', gap: spacing.sm },
+  form: { gap: spacing.lg },
+  footer: { alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
+});
+
+export const authLinkStyle = StyleSheet.create({
+  link: { fontFamily: fonts.semibold, color: colors.brand },
 });

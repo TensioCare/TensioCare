@@ -43,12 +43,12 @@ export default function LoginScreen() {
 
   return (
     <AuthShell
-      eyebrow="Welcome back"
-      title="Sign in to your care space"
+      onBack={() => router.replace('/')}
+      title="Patient sign in"
       subtitle="Track readings, follow your measurement plan, and keep your caregiver in the loop."
       footer={
         <>
-          <Pressable onPress={() => router.push('/(auth)/caregiver')} hitSlop={8}>
+          <Pressable onPress={() => router.push('/(auth)/join')} hitSlop={8}>
             <AppText variant="bodyStrong" tone="brand">
               I have a caregiver code
             </AppText>

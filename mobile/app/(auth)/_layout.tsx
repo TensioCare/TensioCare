@@ -13,7 +13,7 @@ export default function AuthLayout() {
   if (user) {
     return (
       <Redirect
-        href={user.role === 'caregiver' ? '/(caregiver)/(tabs)' : '/(patient)/(tabs)'}
+        href={user.role === 'caregiver' ? '/caregiver' : '/(patient)/(tabs)'}
       />
     );
   }

@@ -175,7 +175,7 @@ export default function PatientProfileScreen() {
               : 'Choose when you want to measure'
           }
           right={<Ionicons name="chevron-forward" size={18} color={colors.mutedLight} />}
-          onPress={() => router.push('/(patient)/(tabs)/plan')}
+          onPress={() => router.push('/(patient)/plan')}
         />
         <ListRow
           icon="globe-outline"

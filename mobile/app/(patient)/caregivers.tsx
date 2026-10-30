@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,
@@ -52,6 +53,7 @@ const emptyForm = (priority: number): CaregiverForm => ({
 });
 
 export default function PatientCaregiversScreen() {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState<CaregiverForm>(emptyForm(1));
@@ -173,14 +175,14 @@ export default function PatientCaregiversScreen() {
   return (
     <>
       <ScrollScreen
-        edges={[]}
         refreshing={caregivers.isRefetching}
         onRefresh={() => void caregivers.refetch()}
       >
         <ScreenHeader
+          onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
           eyebrow="Your circle"
           title="Caregivers"
-          subtitle="Caregivers can see your readings and receive alerts when a measurement is missed."
+          subtitle="Caregivers see your measurement times and whether each one was done — never your readings or personal details."
           right={
             <Button
               title="Add"
@@ -222,7 +224,7 @@ export default function PatientCaregiversScreen() {
             <EmptyState
               icon="people-outline"
               title="No caregivers yet"
-              message="Add someone you trust so they can follow your readings and respond when a measurement is missed."
+              message="Add someone you trust so they can check your measurement schedule and respond when a measurement is missed."
               actionLabel="Add a caregiver"
               onAction={openAdd}
             />

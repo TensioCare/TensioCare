@@ -6,6 +6,7 @@ import { Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, radius, spacing } from '@/constants/theme';
+import { WebDateSheet, WebTimeSheet } from './WebPickerSheet';
 import { AppText, Button } from './ui';
 
 export function DateTimePickerModal({
@@ -29,6 +30,24 @@ export function DateTimePickerModal({
   }, [value, visible]);
 
   if (!visible) return null;
+
+  if (Platform.OS === 'web') {
+    return mode === 'date' ? (
+      <WebDateSheet
+        visible={visible}
+        value={value}
+        onClose={onClose}
+        onConfirm={onConfirm}
+      />
+    ) : (
+      <WebTimeSheet
+        visible={visible}
+        value={value}
+        onClose={onClose}
+        onConfirm={onConfirm}
+      />
+    );
+  }
 
   if (Platform.OS === 'android') {
     return (

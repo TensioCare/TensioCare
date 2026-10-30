@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
-import { colors, radius, shadows, spacing } from '@/constants/theme';
+import { colors, fonts, radius, shadows, spacing } from '@/constants/theme';
 
 export type IconName = keyof typeof Ionicons.glyphMap;
 export type TextTone =
@@ -175,10 +175,10 @@ export function Button({
 
 const buttonPalettes = {
   primary: { bg: colors.brand, fg: colors.onBrand, border: colors.brand },
-  secondary: { bg: colors.card, fg: colors.text, border: colors.borderStrong },
+  secondary: { bg: colors.brandSoft, fg: colors.brandDark, border: colors.brandSoft },
   soft: { bg: colors.brandSoft, fg: colors.brandDark, border: colors.brandSoft },
   ghost: { bg: 'transparent', fg: colors.brand, border: 'transparent' },
-  danger: { bg: colors.dangerSoft, fg: colors.danger, border: '#FECACA' },
+  danger: { bg: colors.danger, fg: colors.onBrand, border: colors.danger },
 };
 
 export function Card({
@@ -651,14 +651,31 @@ export function Notice({
 }
 
 const textStyles = StyleSheet.create({
-  display: { fontSize: 30, lineHeight: 36, fontWeight: '800', letterSpacing: -0.6 },
-  title: { fontSize: 22, lineHeight: 28, fontWeight: '700', letterSpacing: -0.3 },
-  subtitle: { fontSize: 17, lineHeight: 23, fontWeight: '700' },
-  body: { fontSize: 15, lineHeight: 22, fontWeight: '400' },
-  bodyStrong: { fontSize: 15, lineHeight: 21, fontWeight: '600' },
-  caption: { fontSize: 13, lineHeight: 18, fontWeight: '500' },
-  label: { fontSize: 12, lineHeight: 16, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', color: colors.muted },
-  tiny: { fontSize: 11, lineHeight: 14, fontWeight: '700' },
+  display: {
+    fontFamily: fonts.extrabold,
+    fontSize: 32,
+    lineHeight: 38,
+    letterSpacing: -0.8,
+  },
+  title: {
+    fontFamily: fonts.extrabold,
+    fontSize: 24,
+    lineHeight: 30,
+    letterSpacing: -0.4,
+  },
+  subtitle: { fontFamily: fonts.bold, fontSize: 17, lineHeight: 23 },
+  body: { fontFamily: fonts.regular, fontSize: 15, lineHeight: 22 },
+  bodyStrong: { fontFamily: fonts.semibold, fontSize: 15, lineHeight: 21 },
+  caption: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
+  label: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+    color: colors.muted,
+  },
+  tiny: { fontFamily: fonts.bold, fontSize: 11, lineHeight: 14 },
 });
 
 const styles = StyleSheet.create({
@@ -672,35 +689,34 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.72 },
   disabled: { opacity: 0.5 },
   button: {
-    minHeight: 48,
-    borderRadius: radius.md,
+    minHeight: 52,
+    borderRadius: radius.sm,
     borderWidth: 1,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.xl,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonSm: { minHeight: 38, paddingHorizontal: spacing.md, borderRadius: radius.sm },
-  buttonLg: { minHeight: 54, borderRadius: radius.lg },
+  buttonSm: { minHeight: 40, paddingHorizontal: spacing.lg, borderRadius: radius.sm },
+  buttonLg: { minHeight: 56, borderRadius: radius.sm },
   buttonAuto: { alignSelf: 'flex-start' },
   buttonInner: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   card: {
     backgroundColor: colors.card,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    ...shadows.card,
   },
   field: { gap: 6 },
   inputWrap: {
-    minHeight: 48,
+    minHeight: 52,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
+    borderColor: colors.border,
     backgroundColor: colors.card,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
   inputWrapError: { borderColor: colors.danger },
   input: {
@@ -799,7 +815,7 @@ const styles = StyleSheet.create({
   notice: {
     flexDirection: 'row',
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.md,
+    padding: spacing.lg,
+    borderRadius: radius.lg,
   },
 });

@@ -98,7 +98,7 @@ export default function RegisterScreen() {
 
   return (
     <AuthShell
-      eyebrow="Patient account"
+      onBack={() => router.replace('/')}
       title="Create your care space"
       subtitle="This account is for the person measuring their blood pressure. Caregivers join later with a code you share."
       footer={

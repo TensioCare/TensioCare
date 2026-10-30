@@ -59,7 +59,7 @@ export default function CaregiverLoginScreen() {
 
   return (
     <AuthShell
-      eyebrow="Caregiver access"
+      onBack={() => router.replace('/')}
       title="Join with a patient code"
       subtitle="There is no separate caregiver sign-up. The patient creates your profile and shares an 8-character code."
       footer={

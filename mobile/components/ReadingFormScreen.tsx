@@ -180,7 +180,7 @@ export function ReadingFormScreen({ readingId }: { readingId?: number }) {
 
   if (isEdit && readings.isError && !readings.data) {
     return (
-      <ScrollScreen edges={[]}>
+      <ScrollScreen edges={['top']}>
         <ErrorState
           message="We could not load this reading. Check your connection and try again."
           onRetry={() => void readings.refetch()}
@@ -191,15 +191,16 @@ export function ReadingFormScreen({ readingId }: { readingId?: number }) {
 
   if (isEdit && readings.isSuccess && !existing) {
     return (
-      <ScrollScreen edges={[]}>
+      <ScrollScreen edges={['top']}>
         <ErrorState message="This reading no longer exists." />
       </ScrollScreen>
     );
   }
 
   return (
-    <ScrollScreen edges={[]} contentContainerStyle={{ paddingBottom: 60 }}>
+    <ScrollScreen contentContainerStyle={{ paddingBottom: 60 }}>
       <ScreenHeader
+        onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
         eyebrow={isEdit ? 'Correct a record' : 'New measurement'}
         title={isEdit ? 'Edit reading' : 'Log a reading'}
         subtitle="Sit quietly for five minutes before measuring, if you can."

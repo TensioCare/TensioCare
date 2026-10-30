@@ -1,14 +1,16 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import CaregiverUser, DbSession
+from app.core.timeutils import utcnow
 from app.models.caregiver import CaregiverPatient
 from app.models.patient import PatientProfile
+from app.models.reminder import MeasurementWindow
 from app.schemas.reading import ReadingAnalysis, ReadingRead
-from app.schemas.reminder import AdherenceSummary
+from app.schemas.reminder import AdherenceSummary, MeasurementWindowRead
 from app.schemas.user import (
     CaregiverSelfUpdate,
     LinkedPatientRead,
@@ -163,6 +165,34 @@ def analyse_patient_readings(
     patient = get_patient_or_404(db, patient_id)
     ensure_caregiver_can_access(db, current_user, patient_id)
     return analyse_readings(db, patient, days)
+
+
+@router.get(
+    "/me/patients/{patient_id}/windows",
+    response_model=list[MeasurementWindowRead],
+    summary="Measurement times and whether they were taken (no readings)",
+)
+def patient_windows(
+    patient_id: int,
+    current_user: CaregiverUser,
+    db: DbSession,
+    days: int = Query(default=7, ge=1, le=90),
+) -> list[MeasurementWindow]:
+    """The caregiver view is timing only: due times and completion status."""
+    get_patient_or_404(db, patient_id)
+    ensure_caregiver_can_access(db, current_user, patient_id)
+
+    start = utcnow() - timedelta(days=days)
+    return list(
+        db.scalars(
+            select(MeasurementWindow)
+            .where(
+                MeasurementWindow.patient_id == patient_id,
+                MeasurementWindow.due_at >= start,
+            )
+            .order_by(MeasurementWindow.due_at)
+        )
+    )
 
 
 @router.get(

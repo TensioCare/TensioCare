@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { StyleSheet, Switch, View } from 'react-native';
 
@@ -35,6 +36,7 @@ const DAYS = [
 
 export default function PatientPlanScreen() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const schedule = useQuery({
     queryKey: ['reminder-schedule'],
     queryFn: remindersApi.schedule,
@@ -135,7 +137,11 @@ export default function PatientPlanScreen() {
           void profile.refetch();
         }}
       >
-        <ScreenHeader eyebrow="Your routine" title="Measurement plan" />
+        <ScreenHeader
+          eyebrow="Your routine"
+          title="Measurement plan"
+          onBack={() => router.back()}
+        />
         <ErrorState
           message="We could not load your plan. Check your connection and try again."
           onRetry={() => {
@@ -169,6 +175,7 @@ export default function PatientPlanScreen() {
         eyebrow="Your routine"
         title="Measurement plan"
         subtitle="Set the times you want to measure. TensioCare opens a window at each time and reminds you."
+        onBack={() => router.back()}
       />
 
       <Card style={{ gap: spacing.md }}>

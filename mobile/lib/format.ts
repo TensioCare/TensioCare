@@ -13,6 +13,10 @@ const dateFormatter = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
 });
 
+const weekdayFormatter = new Intl.DateTimeFormat(undefined, {
+  weekday: 'short',
+});
+
 const timeFormatter = new Intl.DateTimeFormat(undefined, {
   hour: 'numeric',
   minute: '2-digit',
@@ -32,9 +36,32 @@ export function formatDateTime(value: string | Date | null | undefined): string 
 
 export function formatDate(value: string | Date | null | undefined): string {
   if (!value) return '—';
-  const date = typeof value === 'string' ? new Date(value) : value;
-  if (Number.isNaN(date.getTime())) return '—';
+  const date = toDate(value);
+  if (!date) return '—';
   return dateFormatter.format(date);
+}
+
+/** Weekday name for a value that may be a plain YYYY-MM-DD date string. */
+export function weekdayLabel(value: string | Date): string {
+  const date = toDate(value, true);
+  return date ? weekdayFormatter.format(date) : '';
+}
+
+/** Short axis label such as "Mon 12". */
+export function dayAxisLabel(value: string): string {
+  const date = toDate(value, true);
+  if (!date) return value;
+  return `${weekdayFormatter.format(date)} ${date.getDate()}`;
+}
+
+function toDate(value: string | Date, dateOnly = false): Date | null {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  const raw = value.trim();
+  if (!raw) return null;
+  const normalized =
+    dateOnly && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T12:00:00` : raw;
+  const date = new Date(normalized);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 export function formatTime(value: string | Date | null | undefined): string {

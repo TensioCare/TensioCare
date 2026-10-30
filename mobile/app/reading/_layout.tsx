@@ -16,21 +16,18 @@ export default function ReadingLayout() {
   }
 
   if (user.role !== 'patient') {
-    return <Redirect href="/(caregiver)/(tabs)" />;
+    return <Redirect href="/caregiver" />;
   }
 
   return (
     <Stack
       screenOptions={{
-        headerStyle: { backgroundColor: colors.card },
-        headerTintColor: colors.text,
-        headerTitleStyle: { fontWeight: '700' },
-        headerShadowVisible: false,
+        headerShown: false,
         contentStyle: { backgroundColor: colors.bg },
       }}
     >
-      <Stack.Screen name="new" options={{ title: 'Log a reading' }} />
-      <Stack.Screen name="[id]" options={{ title: 'Edit reading' }} />
+      <Stack.Screen name="new" />
+      <Stack.Screen name="[id]" />
     </Stack>
   );
 }

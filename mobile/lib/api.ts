@@ -333,38 +333,16 @@ export const caregiversApi = {
   leave: (patientId: number) =>
     apiRequest<void>(`/caregivers/me/patients/${patientId}`, { method: 'DELETE' }),
 
-  readings: (patientId: number, limit = 100, offset = 0) =>
-    apiRequest<Reading[]>(
-      `/caregivers/me/patients/${patientId}/readings${query({ limit, offset })}`,
+  /** Timing only: due times and completion status, never readings. */
+  windows: (patientId: number, days = 7) =>
+    apiRequest<MeasurementWindow[]>(
+      `/caregivers/me/patients/${patientId}/windows${query({ days })}`,
     ),
 
-  analysis: (patientId: number, days = 7) =>
-    apiRequest<ReadingAnalysis>(
-      `/caregivers/me/patients/${patientId}/analysis${query({ days })}`,
-    ),
-
+  /** Completion counts only — no readings are exposed to caregivers. */
   adherence: (patientId: number, days = 30) =>
     apiRequest<AdherenceSummary>(
       `/caregivers/me/patients/${patientId}/adherence${query({ days })}`,
-    ),
-
-  assessment: (patientId: number) =>
-    apiRequest<DailyAssessment>(
-      `/caregivers/me/patients/${patientId}/assessment`,
-    ),
-
-  report: (patientId: number, days = 15) =>
-    apiRequest<PeriodReport>(
-      `/caregivers/me/patients/${patientId}/reports/15-day${query({ days })}`,
-    ),
-
-  ask: (patientId: number, question: string) =>
-    apiRequest<AssistantAnswer>(
-      `/caregivers/me/patients/${patientId}/assistant`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ question }),
-      },
     ),
 };
 

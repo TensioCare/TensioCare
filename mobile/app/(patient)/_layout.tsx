@@ -17,7 +17,7 @@ export default function PatientLayout() {
   }
 
   if (user.role !== 'patient') {
-    return <Redirect href="/(caregiver)/(tabs)" />;
+    return <Redirect href="/caregiver" />;
   }
 
   return (
@@ -35,8 +35,16 @@ export default function PatientLayout() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen
+          name="plan"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="assistant"
+          options={{ headerShown: false, animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
           name="caregivers"
-          options={{ headerShown: true, title: 'Caregivers' }}
+          options={{ headerShown: false, animation: 'slide_from_right' }}
         />
       </Stack>
     </>
