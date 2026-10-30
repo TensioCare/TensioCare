@@ -292,8 +292,10 @@ exists only as an escape hatch when you know no scheduler is running.
 
 ### Try it without waiting
 
-Register a patient, two caregivers (priority 1 and 2) and a schedule, then
-simulate a missed measurement by running the job with an injected clock:
+Stop the API first (Ctrl+C), or start it with `ENABLE_SCHEDULER=false`, so the
+live scheduler cannot process the same windows. Then register a patient, two
+caregivers (priority 1 and 2) and a schedule, and simulate a missed measurement
+by running the job with an injected clock:
 
 ```powershell
 $at = "2026-01-01T06:05:00Z"   # 08:00 in Africa/Cairo
