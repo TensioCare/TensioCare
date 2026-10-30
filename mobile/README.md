@@ -9,8 +9,9 @@ There are two roles:
   and report, and acknowledges escalations.
 
 Caregivers do not register themselves. A patient creates a caregiver, shares the
-generated one-time login code, and the caregiver signs in with that code. The
-first successful code login activates the caregiver account.
+generated login code, and the caregiver signs in with that code. The first
+successful code login activates the caregiver account; the same code can be used
+for later sign-ins until the patient regenerates or removes it.
 
 ## Requirements
 
