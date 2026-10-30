@@ -13,7 +13,8 @@ categories and shows averages, target compliance, trends and alerts.
 ## Setup (Windows / PowerShell)
 
 ```powershell
-cd C:\Users\basse\Desktop\solvex
+# from the repository root
+cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
