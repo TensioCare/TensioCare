@@ -22,7 +22,14 @@ class Settings(BaseSettings):
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
+        "http://localhost:8081",
+        "http://127.0.0.1:8081",
     ]
+
+    # Push notifications (Expo). In-app notifications are always stored.
+    push_enabled: bool = True
+    expo_push_url: str = "https://exp.host/--/api/v2/push/send"
+    push_timeout_seconds: float = 5.0
 
     # Auth
     secret_key: str = "dev-only-secret-key-change-me-in-production-please"

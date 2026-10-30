@@ -10,6 +10,7 @@ from app.models.caregiver import CaregiverPatient
 from app.models.notification import Notification, PushDevice
 from app.models.user import User, UserRole
 from app.schemas.notification import PushDeviceCreate
+from app.services.push import send_expo_push
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +27,8 @@ def notify(
 ) -> Notification:
     """Create an in-app notification and hand it to the push provider.
 
-    The console sender is intentionally the only provider wired in: swap
-    ``_send_push`` for FCM/APNs (or Expo) when the mobile app is ready.
+    The in-app row is always persisted. Expo Push is best-effort and only
+    runs when the user has registered at least one phone.
     """
     now = utcnow()
     notification = Notification(
@@ -43,18 +44,18 @@ def notify(
     )
     db.add(notification)
     db.flush()
-    _send_push(notification)
+    _send_push(db, notification)
     return notification
 
 
-def _send_push(notification: Notification) -> None:
-    """Placeholder push transport. Replace with FCM/APNs in production."""
+def _send_push(db: Session, notification: Notification) -> None:
     logger.info(
         "push user=%s type=%s title=%r",
         notification.user_id,
         notification.type,
         notification.title,
     )
+    send_expo_push(db, notification)
 
 
 def unread_count(db: Session, user_id: int) -> int:

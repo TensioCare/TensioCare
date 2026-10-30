@@ -252,10 +252,12 @@ while a leaked access token is only useful for 30 minutes.
 
 Four pieces work together:
 
-1. **Push devices** — the app registers its FCM/APNs token once per phone.
+1. **Push devices** — the app registers its Expo push token once per phone.
 2. **Notifications** — every alert is stored in `notifications` (the in-app
-   inbox) and handed to the push transport. The transport is a placeholder in
-   `app/services/notifications.py::_send_push`; plug FCM/APNs/Expo in there.
+   inbox) and sent through Expo Push (`app/services/push.py`). Delivery is
+   best-effort: a provider failure never loses the in-app row. Set
+   `PUSH_ENABLED=false` to skip network delivery, or point `EXPO_PUSH_URL` at a
+   proxy.
 3. **Measurement windows** — the scheduler materialises one row per expected
    measurement from the patient's schedule (timezone-aware). A schedule can run
    on selected weekdays (`days_of_week`, 0 = Monday) and a pending window can be
@@ -605,7 +607,7 @@ anything.
 #     .\.venv\Scripts\ruff.exe format --check app tests alembic
 ```
 
-The suite currently contains **52 tests** and runs against in-memory SQLite.
+The suite currently contains **53 tests** and runs against in-memory SQLite.
 
 ## Database migrations
 
@@ -631,7 +633,7 @@ development reset: it drops the schema and then runs `alembic upgrade head`.
 
 ## CI and Docker
 
-- `.github/workflows/ci.yml` runs ruff, pytest, `alembic upgrade head` and
+- `.github/workflows/backend.yml` runs ruff, pytest, `alembic upgrade head` and
   `alembic check` against PostgreSQL 17, then builds the API image.
 - `Dockerfile` runs as a non-root user and applies migrations before starting
   uvicorn.
@@ -659,7 +661,8 @@ app/
   services/users.py    Patient registration, authentication, eager loading
   services/caregivers.py  Caregiver creation, login codes, removal
   services/tokens.py   Refresh token issue, rotation, revocation
-  services/notifications.py  Inbox + push transport + acknowledge
+  services/notifications.py  Inbox, device registration, acknowledgement
+  services/push.py           Expo Push delivery + stale-token handling
   services/reminders.py      Windows, reminder cycle, escalation ring
   services/monitoring.py  Readings, analysis, access checks, patient lookup
   services/insights.py   Daily risk, 15-day report, rule-based assistant
@@ -691,9 +694,11 @@ Dockerfile             API image (runs migrations, then uvicorn)
 - The reminder scheduler runs inside the API process. With more than one
   uvicorn worker, move `app.jobs.reminders.run_once` to Celery beat (or run a
   single dedicated worker) so jobs are not executed twice.
-- Push delivery is a placeholder (`_send_push` logs). Add FCM/APNs credentials
-  and send to the tokens stored in `push_devices`; notifications are already
-  persisted so the in-app inbox works without push.
+- Push delivery uses Expo Push. Set `PUSH_ENABLED=false` to turn off network
+  delivery while keeping the in-app inbox. Tokens Expo reports as
+  `DeviceNotRegistered` are deactivated automatically; the app reactivates a
+  token when the phone registers it again. Remote push needs an EAS project ID
+  plus FCM/APNs credentials in the Expo build.
 - Caregiver codes are random (`32^8` combinations) and stored as SHA-256 hashes.
   They do not expire; the patient regenerates or removes a caregiver to cut
   access. Add rate limiting on `/auth/caregiver/login` before production.

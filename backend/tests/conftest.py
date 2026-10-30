@@ -4,6 +4,8 @@ import os
 os.environ["DATABASE_URL"] = "sqlite://"
 # Never start background jobs during tests; they are exercised directly.
 os.environ["ENABLE_SCHEDULER"] = "false"
+# Keep tests offline: notifications are still persisted, push is skipped.
+os.environ["PUSH_ENABLED"] = "false"
 
 from collections.abc import Generator  # noqa: E402
 
