@@ -1,0 +1,1545 @@
+{
+  "info": {
+    "name": "SolveX API",
+    "description": "Blood pressure monitoring API (patients + caregivers).\n\nRun the requests top to bottom:\n1. Auth -> Register patient (saves patientToken + patientId)\n2. Patient -> Register device (saves deviceId)\n3. Patient -> Add reading / Analysis\n4. Auth -> Register caregiver (links by patientEmail, saves caregiverToken)\n5. Caregiver -> List patients / readings / analysis\n\nRe-running is safe: register requests generate a fresh email each time.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "patientToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "caregiverToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "patientEmail",
+      "value": "patient@solvex-demo.com",
+      "type": "string"
+    },
+    {
+      "key": "caregiverId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "caregiverCode",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "patientId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deviceId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deviceSerial",
+      "value": "BP-DEMO",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "readingId",
+      "value": ""
+    },
+    {
+      "key": "windowId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Liveness probe, no auth required."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register patient",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('patientEmail', `patient_${Date.now()}@solvex-demo.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('patientToken', body.access_token);",
+                  "pm.collectionVariables.set('patientId', body.user.patient_profile.id);",
+                  "pm.collectionVariables.set('refreshToken', body.refresh_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{patientEmail}}\",\n  \"password\": \"strong-password\",\n  \"first_name\": \"Ali\",\n  \"last_name\": \"Bassem\",\n  \"age\": 61,\n  \"diagnosis\": \"Hypertension stage 2\",\n  \"medical_history\": \"Hypertension since 2021\",\n  \"medications\": \"Amlodipine 10mg\",\n  \"target_systolic\": 130,\n  \"target_diastolic\": 80,\n  \"measurements_per_day\": 2,\n  \"measurement_times\": [\n    \"8am\",\n    \"8pm\"\n  ],\n  \"timezone\": \"Africa/Cairo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Creates the patient account and stores patientToken + patientId as collection variables."
+          },
+          "response": []
+        },
+        {
+          "name": "Login patient",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('patientToken', body.access_token);",
+                  "pm.collectionVariables.set('refreshToken', body.refresh_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{patientEmail}}\",\n  \"password\": \"strong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "JSON login. Use this after 'Register patient' to refresh the token."
+          },
+          "response": []
+        },
+        {
+          "name": "Add caregiver (patient only, returns code)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/caregivers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "caregivers"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Omar\",\n  \"last_name\": \"Bassem\",\n  \"relationship\": \"Son\",\n  \"phone\": \"+1 555 0300\",\n  \"notes\": \"Lives 10 minutes away\",\n  \"priority\": 1,\n  \"notify_after_minutes\": 15\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Patient adds a caregiver. The response contains a one-time code to share."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('code has 8 characters', () => pm.expect(body.code).to.match(/^[A-Z2-9]{4}-[A-Z2-9]{4}$/));",
+                  "pm.collectionVariables.set('caregiverId', body.caregiver_id);",
+                  "pm.collectionVariables.set('caregiverCode', body.code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Preview caregiver code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/caregiver-codes/{{caregiverCode}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "caregiver-codes",
+                "{{caregiverCode}}"
+              ]
+            },
+            "description": "Public preview shown before the caregiver confirms."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('shows the patient', () => pm.expect(body.patient_first_name).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login caregiver with code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/caregiver/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "caregiver",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{caregiverCode}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "First use activates the account; later uses sign the same caregiver back in."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('role is caregiver', () => pm.expect(body.user.role).to.eql('caregiver'));",
+                  "pm.collectionVariables.set('caregiverToken', body.access_token);",
+                  "pm.collectionVariables.set('refreshToken', body.refresh_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('rotated', () => pm.expect(body.refresh_token).to.not.equal(pm.collectionVariables.get('refreshToken')));",
+                  "pm.collectionVariables.set('refreshToken', body.refresh_token);",
+                  "pm.collectionVariables.set('patientToken', body.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Silent session extension for mobile clients. Refresh tokens are single-use: the old value is revoked and a new one is returned. Call this when a request returns 401, then retry the original request."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout (revoke refresh token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.set('refreshToken', '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Revokes the refresh token. The app should also drop its stored tokens."
+          },
+          "response": []
+        },
+        {
+          "name": "Me (current user)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Uses the patient token by default. Switch the Auth tab to Bearer {{caregiverToken}} to see the caregiver profile."
+          },
+          "response": []
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{patientToken}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Patient",
+      "item": [
+        {
+          "name": "Get my profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update my profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"diagnosis\": \"Hypertension stage 1\",\n  \"medications\": \"Amlodipine 5mg\",\n  \"target_systolic\": 125,\n  \"target_diastolic\": 75,\n  \"measurements_per_day\": 3,\n  \"measurement_times\": [\n    \"08:00\",\n    \"14:00\",\n    \"20:00\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/patients/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List my caregivers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/caregivers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "caregivers"
+              ]
+            },
+            "description": "Caregivers in escalation order, including pending ones."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('is an array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Regenerate caregiver code",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/caregivers/{{caregiverId}}/code",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "caregivers",
+                "{{caregiverId}}",
+                "code"
+              ]
+            },
+            "description": "Invalidates the previous code. Nobody is logged out until the caregiver is removed."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('caregiverCode', body.code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Edit caregiver (details / ring)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/caregivers/{{caregiverId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "caregivers",
+                "{{caregiverId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Omar\",\n  \"relationship\": \"Son\",\n  \"priority\": 1,\n  \"notify_after_minutes\": 15,\n  \"notes\": \"Primary contact\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The patient can edit the caregiver's details and move them in the ring."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('priority updated', () => pm.expect(body.priority).to.eql(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register device",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('deviceSerial', `BP-${Date.now()}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('deviceId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"serial_number\": \"{{deviceSerial}}\",\n  \"label\": \"Home monitor\",\n  \"model\": \"OMRON M7\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/devices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "devices"
+              ]
+            },
+            "description": "Generates a unique serial and stores deviceId."
+          },
+          "response": []
+        },
+        {
+          "name": "List devices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/devices",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "devices"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Add reading (stage 2 example)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('category computed', () => pm.expect(body.category).to.be.oneOf(['low','normal','elevated','stage_1','stage_2','crisis']));",
+                  "if (body.id) { pm.collectionVariables.set('readingId', body.id); }"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"systolic\": 158,\n  \"diastolic\": 99,\n  \"pulse\": 92,\n  \"device_serial\": \"{{deviceSerial}}\",\n  \"notes\": \"Morning measurement\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/readings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "readings"
+              ]
+            },
+            "description": "Omit device_serial to store a manual reading. measured_at defaults to now (UTC)."
+          },
+          "response": []
+        },
+        {
+          "name": "Edit reading",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/readings/{{readingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "readings",
+                "{{readingId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"systolic\": 138,\n  \"diastolic\": 86,\n  \"notes\": \"Corrected after re-measurement\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Correct a saved reading; the category is recomputed automatically."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('reading corrected', () => pm.expect(body.systolic).to.eql(138));",
+                  "pm.test('category recomputed', () => pm.expect(body.category).to.eql('stage_1'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List readings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/readings?limit=50&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "readings"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Latest reading",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/readings/latest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "readings",
+                "latest"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Analysis (7 days)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('has readings', () => pm.expect(pm.response.json().reading_count).to.be.above(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/readings/analysis?days=7",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "readings",
+                "analysis"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "7"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Set schedule (weekdays + times)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/reminders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "reminders"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"timezone\": \"Africa/Cairo\",\n  \"times\": [\n    \"08:00\",\n    \"20:00\"\n  ],\n  \"days_of_week\": [\n    0,\n    1,\n    2,\n    3,\n    4,\n    5,\n    6\n  ],\n  \"grace_minutes\": 60\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "days_of_week: 0 = Monday. Saving an active schedule creates upcoming windows immediately."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('weekdays saved', () => pm.expect(body.days_of_week.length).to.eql(7));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List reminder windows",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/reminders/windows?days=7",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "reminders",
+                "windows?days=7"
+              ]
+            },
+            "description": "Stores the first window id for the snooze request."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('list returned', () => pm.expect(items).to.be.an('array'));",
+                  "if (items.length) { pm.collectionVariables.set('windowId', items[0].id); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Snooze window 15 min",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/reminders/windows/{{windowId}}/snooze",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "reminders",
+                "windows",
+                "{{windowId}}",
+                "snooze"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"minutes\": 15\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Only pending windows can be snoozed; a new reminder is sent at the new time."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('still pending', () => pm.expect(body.status).to.eql('pending'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Daily assessment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/assessment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "assessment"
+              ]
+            },
+            "description": "Rule-based risk with reasons and actions; no external AI key needed."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('risk level', () => pm.expect(body.risk_level).to.be.oneOf(['no_data','low','moderate','high','critical']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15-day report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/reports/15-day?days=15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "reports",
+                "15-day?days=15"
+              ]
+            },
+            "description": "Narrative report built from the readings, target and adherence."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('narrative', () => pm.expect(body.narrative).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ask assistant",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/assistant",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "assistant"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"What is the average blood pressure?\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Supported topics: latest, average, adherence, target, trend, crisis, summary."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('intent detected', () => pm.expect(body.intent).to.eql('average'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Export readings CSV",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/readings/export.csv",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "readings",
+                "export.csv"
+              ]
+            },
+            "description": "Open the response in Postman's Body tab; it is a text/csv attachment."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('csv content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete device",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/devices/{{deviceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "devices",
+                "{{deviceId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{patientToken}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Caregiver",
+      "item": [
+        {
+          "name": "List my patients",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/caregivers/me/patients",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "caregivers",
+                "me",
+                "patients"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Edit my details",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/caregivers/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "caregivers",
+                "me"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"Omar\",\n  \"last_name\": \"Bassem\",\n  \"relationship\": \"Son\",\n  \"phone\": \"+1 555 0300\",\n  \"notes\": \"Prefers calls after 6pm\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "A caregiver can edit their own name, relationship and contact details."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('name updated', () => pm.expect(body.first_name).to.eql('Omar'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patient readings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/caregivers/me/patients/{{patientId}}/readings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "caregivers",
+                "me",
+                "patients",
+                "{{patientId}}",
+                "readings"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Patient analysis",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/caregivers/me/patients/{{patientId}}/analysis?days=30",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "caregivers",
+                "me",
+                "patients",
+                "{{patientId}}",
+                "analysis"
+              ],
+              "query": [
+                {
+                  "key": "days",
+                  "value": "30"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Patient assessment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/caregivers/me/patients/{{patientId}}/assessment",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "caregivers",
+                "me",
+                "patients",
+                "{{patientId}}",
+                "assessment"
+              ]
+            },
+            "description": "The same daily assessment the patient sees."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('risk level', () => pm.expect(body.risk_level).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Patient 15-day report",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/caregivers/me/patients/{{patientId}}/reports/15-day",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "caregivers",
+                "me",
+                "patients",
+                "{{patientId}}",
+                "reports",
+                "15-day"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('narrative', () => pm.expect(body.narrative).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ask about patient",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/caregivers/me/patients/{{patientId}}/assistant",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "caregivers",
+                "me",
+                "patients",
+                "{{patientId}}",
+                "assistant"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"How is the adherence?\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('adherence intent', () => pm.expect(body.intent).to.eql('adherence'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Export patient readings CSV",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/caregivers/me/patients/{{patientId}}/readings/export.csv",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "caregivers",
+                "me",
+                "patients",
+                "{{patientId}}",
+                "readings",
+                "export.csv"
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('csv content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv'));"
+                ]
+              }
+            }
+          ]
+        }
+      ],
+      "auth": {
+        "type": "bearer",
+        "bearer": [
+          {
+            "key": "token",
+            "value": "{{caregiverToken}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Cleanup",
+      "description": "Destructive requests. Run after the Caregiver folder. The caregiver can alternatively call DELETE /caregivers/me/patients/{id} to leave, which deletes the same account.",
+      "item": [
+        {
+          "name": "Delete reading",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/readings/{{readingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "readings",
+                "{{readingId}}"
+              ]
+            },
+            "description": "Delete a wrong reading. Run this after the analysis/export requests."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));",
+                  "pm.collectionVariables.unset('readingId');"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove caregiver (cleanup, run last)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/patients/me/caregivers/{{caregiverId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "patients",
+                "me",
+                "caregivers",
+                "{{caregiverId}}"
+              ]
+            },
+            "description": "Deletes the caregiver account, its link and all refresh tokens."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
