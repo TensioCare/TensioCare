@@ -222,6 +222,17 @@ export interface RiskAssessment {
   disclaimer: string;
 }
 
+export interface RiskHistoryItem {
+  id: number;
+  generated_at: string;
+  risk_level: RiskLevel;
+  risk_score: number;
+  classification: string;
+  direction: string | null;
+  readings_used: number;
+  reasons: string[];
+}
+
 export interface RiskPrediction {
   generated_at: string;
   current: RiskAssessment;

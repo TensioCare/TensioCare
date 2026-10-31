@@ -35,6 +35,7 @@ from app.models.user import User
 from app.schemas.insight import (
     FutureProjection,
     RiskAssessment,
+    RiskHistoryItem,
     RiskPrediction,
 )
 from app.services.notifications import notify
@@ -284,6 +285,34 @@ def anomalies(db: Session, patient: PatientProfile) -> dict:
         "findings": findings,
         "disclaimer": DISCLAIMER,
     }
+
+
+def risk_history(
+    db: Session, patient: PatientProfile, limit: int = 20
+) -> list[RiskHistoryItem]:
+    """Recent persisted risk assessments, newest first."""
+    rows = db.query(RiskAssessmentRow).filter(
+        RiskAssessmentRow.patient_id == patient.id
+    ).order_by(RiskAssessmentRow.created_at.desc()).limit(limit).all()
+    items: list[RiskHistoryItem] = []
+    for row in rows:
+        try:
+            reasons = json.loads(row.reasons) if row.reasons else []
+        except (ValueError, TypeError):
+            reasons = []
+        items.append(
+            RiskHistoryItem(
+                id=row.id,
+                generated_at=row.created_at,
+                risk_level=row.risk_level,
+                risk_score=row.risk_score,
+                classification=row.classification,
+                direction=row.direction,
+                readings_used=row.readings_used,
+                reasons=reasons,
+            )
+        )
+    return items
 
 
 def notify_caregivers_of_critical_risk(

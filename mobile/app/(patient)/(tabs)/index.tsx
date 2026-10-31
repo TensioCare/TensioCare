@@ -75,6 +75,10 @@ export default function PatientHomeScreen() {
     queryKey: ['risk'],
     queryFn: insightsApi.risk,
   });
+  const riskHistory = useQuery({
+    queryKey: ['risk-history'],
+    queryFn: () => insightsApi.riskHistory(8),
+  });
   const adherence = useQuery({
     queryKey: ['adherence', 7],
     queryFn: () => remindersApi.adherence(7),
@@ -109,6 +113,7 @@ export default function PatientHomeScreen() {
   const refresh = () => {
     void assessment.refetch();
     void riskQuery.refetch();
+    void riskHistory.refetch();
     void adherence.refetch();
     void windows.refetch();
     void profile.refetch();
@@ -398,6 +403,22 @@ export default function PatientHomeScreen() {
             </AppText>
           )}
         </Card>
+
+        {riskHistory.data && riskHistory.data.length > 0 ? (
+          <Card style={{ gap: spacing.sm }}>
+            <AppText variant="subtitle">Recent risk assessments</AppText>
+            {riskHistory.data.map((item) => (
+              <View key={item.id} style={styles.spread}>
+                <AppText variant="caption" tone="muted">
+                  {new Date(item.generated_at).toLocaleDateString()}
+                </AppText>
+                <AppText variant="caption" style={{ color: colors.brandDark }}>
+                  {item.risk_level} · {item.risk_score}/100
+                </AppText>
+              </View>
+            ))}
+          </Card>
+        ) : null}
 
         <Card style={{ gap: spacing.md }}>
           <View style={styles.spread}>

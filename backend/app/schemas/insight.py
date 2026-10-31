@@ -88,6 +88,19 @@ class FutureProjection(BaseModel):
     confidence: Literal["high", "moderate", "low", "insufficient_data"]
 
 
+class RiskHistoryItem(BaseModel):
+    """One persisted risk assessment (audit trail)."""
+
+    id: int
+    generated_at: datetime
+    risk_level: RiskLevel
+    risk_score: int = Field(ge=0, le=100)
+    classification: str
+    direction: str | None = None
+    readings_used: int
+    reasons: list[str] = Field(default_factory=list)
+
+
 class RiskPrediction(BaseModel):
     """Current danger plus a forward-looking trajectory projection."""
 

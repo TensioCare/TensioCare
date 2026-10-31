@@ -8,6 +8,7 @@ from app.schemas.insight import (
     ChatRequest,
     DailyAssessment,
     PeriodReport,
+    RiskHistoryItem,
     RiskPrediction,
 )
 from app.services import insights
@@ -188,3 +189,30 @@ async def patient_assistant_chat(
 
     history = [{"role": t.role, "content": t.content} for t in payload.messages]
     return await ai_chat.ask(db, _profile(current_user), history)
+
+@router.get(
+    '/patients/me/risk/history',
+    response_model=list[RiskHistoryItem],
+    summary='Recent persisted risk assessments (audit trail)',
+)
+def my_risk_history(
+    current_user: PatientUser, db: DbSession, limit: int = Query(default=20, ge=1, le=100)
+) -> list[RiskHistoryItem]:
+    from app.services import risk
+
+    return risk.risk_history(db, _profile(current_user), limit=limit)
+
+
+@router.get(
+    '/caregivers/me/patients/{patient_id}/risk/history',
+    response_model=list[RiskHistoryItem],
+    summary='Recent persisted risk assessments for a linked patient',
+)
+def patient_risk_history(
+    patient_id: int, current_user: CaregiverUser, db: DbSession,
+    limit: int = Query(default=20, ge=1, le=100),
+) -> list[RiskHistoryItem]:
+    from app.services import risk
+
+    return risk.risk_history(db, _linked_patient(db, current_user, patient_id), limit=limit)
+
