@@ -67,6 +67,19 @@ export default function CaregiverTabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="assistant"
+        options={{
+          title: 'Assistant',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'chatbubbles' : 'chatbubbles-outline'}
+              size={22}
+              color={(color ?? colors.mutedLight) as string}
+            />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

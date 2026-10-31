@@ -39,6 +39,13 @@ class Settings(BaseSettings):
     # Long-lived, rotating refresh token (stored hashed, revocable).
     refresh_token_expire_days: int = 30
 
+    # NVIDIA NIM (OpenAI-compatible chat completions).
+    # Get a free key at https://build.nvidia.com (1,000 calls/day free).
+    nvidia_api_key: str = ""
+    nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
+    nvidia_model: str = "meta/llama-3.1-8b-instruct"
+    nvidia_timeout_seconds: float = 20.0
+
 
 @lru_cache
 def get_settings() -> Settings:

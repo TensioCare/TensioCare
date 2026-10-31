@@ -1,7 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, HTTPException, Query, Response, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import CaregiverUser, DbSession
@@ -17,6 +17,24 @@ from app.schemas.user import (
     LinkedPatientUpdate,
     UserRead,
 )
+from pydantic import BaseModel, Field
+from typing import Optional
+
+
+class CaregiverPatientSummary(BaseModel):
+    model_config = {"from_attributes": True}
+
+    patient_name: str
+    patient_age: Optional[int] = None
+    diagnosis: Optional[str] = None
+    target_systolic: Optional[int] = None
+    target_diastolic: Optional[int] = None
+    measurement_times: list[str]
+    timezone: str
+    adherence_7d: AdherenceSummary
+    windows_due_today: list[str]
+    windows_status_today: list[str]
+    recent_alerts: int  # count of unacknowledged escalations
 from app.services import caregivers as caregiver_service
 from app.services import reminders as reminder_service
 from app.services.monitoring import (
@@ -209,3 +227,85 @@ def patient_adherence(
     get_patient_or_404(db, patient_id)
     ensure_caregiver_can_access(db, current_user, patient_id)
     return reminder_service.adherence_summary(db, patient_id, days=days)
+
+
+@router.get(
+    "/me/patients/{patient_id}/summary",
+    response_model=CaregiverPatientSummary,
+    summary="Patient summary for caregiver assistant (RAG context)",
+)
+def patient_summary(
+    patient_id: int,
+    current_user: CaregiverUser,
+    db: DbSession,
+) -> CaregiverPatientSummary:
+    """Return aggregated data for the caregiver RAG assistant.
+
+    This endpoint does **not** return raw readings or measurement windows;
+    it only returns aggregates that a LLM or rule‑based assistant can use
+    to answer caregiver questions without exposing personal health data.
+    """
+    from app.models.patient import PatientProfile
+    from app.models.reminder import MeasurementWindow
+
+    patient = get_patient_or_404(db, patient_id)
+    ensure_caregiver_can_access(db, current_user, patient_id)
+
+    # --- basic patient info ---
+    name = f"{patient.user.first_name} {patient.user.last_name}".strip()
+    age = None
+    # we don't store age; compute from birthdate if needed – omit for now.
+
+    # --- diagnosis / targets ---
+    diagnosis = patient.diagnosis
+    target_systolic = patient.target_systolic
+    target_diastolic = patient.target_diastolic
+
+    # --- measurement times from profile ---
+    times = patient.measurement_times or []
+    tz = patient.timezone
+
+    # --- 7‑day adherence ---
+    adherence = reminder_service.adherence_summary(db, patient.id, days=7)
+
+    # --- windows due today (next 24h) ---
+    now = utcnow()
+    today_start = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+    today_end = today_start + timedelta(days=1)
+    windows = db.scalars(
+        select(MeasurementWindow).where(
+            MeasurementWindow.patient_id == patient_id,
+            MeasurementWindow.due_at >= today_start,
+            MeasurementWindow.due_at < today_end,
+        )
+    ).all()
+    windows_due = [
+        w.due_at.strftime("%I:%M %p").lstrip("0") for w in windows
+    ]
+    windows_status = [
+        w.status if w.status in ("pending", "completed", "missed", "escalated") else "pending" for w in windows
+    ]
+
+    # --- recent alerts (unacknowledged escalations) ---
+    # Count escalated windows that haven't been acknowledged yet.
+    recent_alerts = db.scalar(
+        select(func.count()).select_from(MeasurementWindow).where(
+            MeasurementWindow.patient_id == patient_id,
+            MeasurementWindow.status == "escalated",
+            MeasurementWindow.acknowledged_at.is_(None),
+        )
+    )
+
+    return CaregiverPatientSummary(
+        patient_name=name,
+        patient_age=age,
+        diagnosis=diagnosis,
+        target_systolic=target_systolic,
+        target_diastolic=target_diastolic,
+        measurement_times=times,
+        timezone=tz,
+        adherence_7d=adherence,
+        windows_due_today=windows_due,
+        windows_status_today=windows_status,
+        recent_alerts=recent_alerts or 0,
+    )

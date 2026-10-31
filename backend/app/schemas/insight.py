@@ -48,3 +48,16 @@ class AssistantAnswer(BaseModel):
     intent: str
     answer: str
     data: dict[str, Any] = Field(default_factory=dict)
+
+
+class ChatTurn(BaseModel):
+    """One OpenAI-style turn in the conversation history."""
+
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=2000)
+
+
+class ChatRequest(BaseModel):
+    """Full conversation history ending with the latest user question."""
+
+    messages: list[ChatTurn] = Field(min_length=1, max_length=40)

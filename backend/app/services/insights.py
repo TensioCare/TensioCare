@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from statistics import mean
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.bp import BPCategory, BPTrend
@@ -17,7 +17,7 @@ from app.core.timeutils import to_naive_utc, utcnow
 from app.models.notification import Notification
 from app.models.patient import PatientProfile
 from app.models.reading import BloodPressureReading
-from app.models.reminder import ReminderSchedule
+from app.models.reminder import MeasurementWindow, ReminderSchedule
 from app.schemas.insight import (
     AssistantAnswer,
     DailyAssessment,
@@ -565,7 +565,104 @@ def answer_question(
             data={} if latest is None else {"reading_id": latest.id},
         )
 
-    if any(word in text for word in ("summary", "report", "overview", "حالة")):
+    if any(
+        word in text
+        for word in ("time", "times", "schedule", "when", "plan", "routine")
+    ):
+        times = patient.measurement_times or []
+        if times:
+            answer = (
+                f"Measurements are scheduled at {', '.join(times)} "
+                f"({patient.timezone})."
+            )
+        else:
+            answer = "No measurement schedule is set yet."
+        return AssistantAnswer(
+            intent="schedule",
+            answer=answer,
+            data={"measurement_times": times, "timezone": patient.timezone},
+        )
+
+    if any(
+        word in text
+        for word in ("due", "upcoming", "next", "miss today", "scheduled today")
+    ):
+        now = utcnow()
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        windows = list(
+            db.scalars(
+                select(MeasurementWindow)
+                .where(
+                    MeasurementWindow.patient_id == patient.id,
+                    MeasurementWindow.due_at >= day_start,
+                )
+                .order_by(MeasurementWindow.due_at)
+            )
+        )
+        if not windows:
+            answer = "No measurements are scheduled for today."
+            data: dict[str, object] = {"windows_today": 0}
+        else:
+            counts: dict[str, int] = {}
+            for window in windows:
+                counts[window.status] = counts.get(window.status, 0) + 1
+            pending = counts.get("pending", 0)
+            parts = [f"{count} {status}" for status, count in counts.items()]
+            answer = (
+                f"{len(windows)} measurement(s) scheduled today: "
+                f"{', '.join(parts)}."
+            )
+            if pending:
+                answer += f" {pending} still need(s) to be taken."
+            data = {"windows_today": len(windows), "status_counts": counts}
+        return AssistantAnswer(intent="windows", answer=answer, data=data)
+
+    if any(
+        word in text
+        for word in ("alert", "alarm", "escalat", "acknowledg")
+    ):
+        alerts = db.scalar(
+            select(func.count())
+            .select_from(MeasurementWindow)
+            .where(
+                MeasurementWindow.patient_id == patient.id,
+                MeasurementWindow.status == "escalated",
+                MeasurementWindow.acknowledged_at.is_(None),
+            )
+        )
+        alerts = alerts or 0
+        if alerts:
+            answer = (
+                f"There {('is' if alerts == 1 else 'are')} {alerts} "
+                f"unacknowledged alert(s) for missed measurements. Review them "
+                "in the Alerts tab, and make sure the patient measures again."
+            )
+        else:
+            answer = "There are no unacknowledged alerts right now."
+        return AssistantAnswer(
+            intent="alerts",
+            answer=answer,
+            data={"unacknowledged_alerts": alerts},
+        )
+
+    if any(
+        word in text
+        for word in (
+            "summary",
+            "report",
+            "overview",
+            "حالة",
+            "blood pressure",
+            "bp",
+            "week",
+            "month",
+            "how",
+            "doing",
+            "status",
+            "condition",
+            "progress",
+        )
+    ):
         report = period_report(db, patient, 15)
         answer = report.narrative
         return AssistantAnswer(

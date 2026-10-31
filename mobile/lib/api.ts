@@ -273,6 +273,13 @@ export const insightsApi = {
       method: 'POST',
       body: JSON.stringify({ question }),
     }),
+
+  /** RAG chat over the patient's own dataset (NVIDIA NIM, fallback built in). */
+  askChat: (messages: ChatMessage[]) =>
+    apiRequest<AssistantAnswer>('/patients/me/assistant/chat', {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
+    }),
 };
 
 export const notificationsApi = {
@@ -344,7 +351,19 @@ export const caregiversApi = {
     apiRequest<AdherenceSummary>(
       `/caregivers/me/patients/${patientId}/adherence${query({ days })}`,
     ),
+
+  /** RAG chat over the patient's dataset (NVIDIA NIM, rule-based fallback). */
+  askChat: (patientId: number, messages: ChatMessage[]) =>
+    apiRequest<AssistantAnswer>(`/caregivers/me/patients/${patientId}/assistant/chat`, {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
+    }),
 };
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 interface PatientProfileUpdatePayload {
   diagnosis?: string | null;

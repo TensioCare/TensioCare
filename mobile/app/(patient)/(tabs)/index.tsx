@@ -417,7 +417,7 @@ export default function PatientHomeScreen() {
 
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push('/(patient)/assistant')}
+          onPress={() => router.push('/assistant')}
           style={({ pressed }) => [styles.assistantCard, pressed && { opacity: 0.85 }]}
         >
           <View style={styles.assistantIcon}>

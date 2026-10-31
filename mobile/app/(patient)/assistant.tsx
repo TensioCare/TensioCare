@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useMutation } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { useRef, useState, type ElementRef } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -14,22 +14,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AppText, Card, Notice } from '@/components/ui';
+import { AppText, Button } from '@/components/ui';
 import { colors, fonts, radius, spacing } from '@/constants/theme';
-import { ApiError, insightsApi } from '@/lib/api';
+import { ApiError, insightsApi, type ChatMessage } from '@/lib/api';
 
-type Message = {
-  id: string;
-  role: 'patient' | 'assistant';
-  text: string;
-};
+type Message = ChatMessage & { id: string; error?: boolean };
 
-const SUGGESTIONS = [
+const SUGGESTED_QUESTIONS = [
+  'How was my blood pressure this week?',
+  'Am I within my target range?',
+  'How many measurements did I miss?',
+  'What are my measurement times?',
   'What is my latest reading?',
-  'Am I meeting my targets?',
-  'How do I measure correctly?',
-  'What are warning signs?',
 ];
+
+const WELCOME =
+  'Hi! I can explain your blood pressure readings, your target, your measurement schedule and your progress — all from the data saved in the app. What would you like to know?';
 
 let messageCounter = 0;
 function nextId(): string {
@@ -37,54 +37,51 @@ function nextId(): string {
   return `m-${messageCounter}`;
 }
 
-const WELCOME: Message = {
-  id: nextId(),
-  role: 'assistant',
-  text: "Hi! Ask me anything about your blood pressure, your targets or your measurement routine. I only give general guidance — I don't replace your doctor.",
-};
-
-export default function AssistantScreen() {
+export default function PatientAssistantScreen() {
   const router = useRouter();
-  const scrollRef = useRef<ElementRef<typeof ScrollView>>(null);
-  const [messages, setMessages] = useState<Message[]>([WELCOME]);
+  const queryClient = useQueryClient();
+
+  const [messages, setMessages] = useState<Message[]>([
+    { id: nextId(), role: 'assistant', content: WELCOME },
+  ]);
   const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const ask = useMutation({
-    mutationFn: (question: string) => insightsApi.ask(question),
-    onSuccess: (answer, question) => {
-      setMessages((current) => [
-        ...current,
-        { id: nextId(), role: 'assistant', text: answer.answer },
-      ]);
-      setDraft('');
-      requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
-      void question;
-    },
-    onError: (error) => {
-      setMessages((current) => [
-        ...current,
-        {
-          id: nextId(),
-          role: 'assistant',
-          text:
-            error instanceof ApiError
-              ? error.message
-              : 'I could not reach the health service. Check your connection and try again.',
-        },
-      ]);
-    },
-  });
-
-  function send(text: string) {
+  async function send(text: string) {
     const question = text.trim();
-    if (!question || ask.isPending) return;
-    setMessages((current) => [
-      ...current,
-      { id: nextId(), role: 'patient', text: question },
-    ]);
+    if (!question || busy) return;
+
+    const userTurn: Message = { id: nextId(), role: 'user', content: question };
+    const nextMessages = [...messages, userTurn];
+    setMessages(nextMessages);
     setDraft('');
-    ask.mutate(question);
-    requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
+    setBusy(true);
+
+    // The welcome greeting is UI-only; history starts at the first question.
+    const history: ChatMessage[] = nextMessages
+      .filter((m) => m.id !== messages[0]?.id)
+      .map((m) => ({ role: m.role, content: m.content }));
+
+    try {
+      const answer = await insightsApi.askChat(history);
+      setMessages((current) => [
+        ...current,
+        { id: nextId(), role: 'assistant', content: answer.answer },
+      ]);
+      // A new reading may have been discussed; refresh dashboard numbers.
+      void queryClient.invalidateQueries({ queryKey: ['assessment'] });
+    } catch (error) {
+      const message =
+        error instanceof ApiError
+          ? error.message
+          : 'The assistant is unreachable right now. Please try again.';
+      setMessages((current) => [
+        ...current,
+        { id: nextId(), role: 'assistant', content: message, error: true },
+      ]);
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -94,21 +91,18 @@ export default function AssistantScreen() {
           accessibilityRole="button"
           accessibilityLabel="Go back"
           hitSlop={10}
-          onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+          onPress={() => router.back()}
           style={({ pressed }) => [styles.back, pressed && { opacity: 0.6 }]}
         >
           <Ionicons name="chevron-back" size={22} color={colors.text} />
         </Pressable>
         <View style={{ flex: 1 }}>
-          <AppText variant="title" style={{ fontSize: 24 }}>
+          <AppText variant="title" style={{ fontSize: 20 }}>
             Assistant
           </AppText>
           <AppText variant="caption" tone="muted">
-            General guidance — does not replace your doctor
+            Answers from your saved data — does not replace your doctor
           </AppText>
-        </View>
-        <View style={styles.headerIcon}>
-          <Ionicons name="chatbubble-ellipses-outline" size={18} color={colors.brand} />
         </View>
       </View>
 
@@ -118,73 +112,84 @@ export default function AssistantScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
       >
         <ScrollView
-          ref={scrollRef}
-          contentContainerStyle={styles.messages}
-          showsVerticalScrollIndicator={false}
+          style={styles.messageContainer}
+          contentContainerStyle={styles.messageContent}
           keyboardShouldPersistTaps="handled"
-          onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: false })}
         >
           {messages.map((message) => (
             <View
               key={message.id}
               style={[
                 styles.bubbleWrap,
-                message.role === 'patient' ? styles.bubbleRight : styles.bubbleLeft,
+                message.role === 'user' ? styles.bubbleRight : styles.bubbleLeft,
               ]}
             >
               {message.role === 'assistant' ? (
-                <Card
-                  style={{
-                    gap: 0,
-                    padding: spacing.md,
-                    backgroundColor: colors.card,
-                  }}
+                <View
+                  style={[
+                    styles.assistantBubble,
+                    message.error && styles.assistantError,
+                  ]}
                 >
-                  <AppText variant="body">{message.text}</AppText>
-                </Card>
+                  <AppText
+                    variant="caption"
+                    style={[
+                      { fontSize: 13, lineHeight: 18 },
+                      message.error && { color: colors.danger },
+                    ]}
+                  >
+                    {message.content}
+                  </AppText>
+                </View>
               ) : (
                 <View style={styles.patientBubble}>
-                  <AppText variant="body" style={{ color: colors.onBrand }}>
-                    {message.text}
+                  <AppText
+                    variant="caption"
+                    style={{ fontSize: 13, lineHeight: 18, color: colors.onBrand }}
+                  >
+                    {message.content}
                   </AppText>
                 </View>
               )}
             </View>
           ))}
 
-          {ask.isPending ? (
+          {busy && (
             <View style={[styles.bubbleWrap, styles.bubbleLeft]}>
-              <Card style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md }}>
+              <View style={styles.assistantBubble}>
                 <ActivityIndicator size="small" color={colors.brand} />
-                <AppText variant="caption" tone="muted">
-                  Thinking...
-                </AppText>
-              </Card>
+              </View>
             </View>
-          ) : null}
-        </ScrollView>
+          )}
 
-        <View style={styles.suggestions}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <View style={styles.suggestionRow}>
-              {SUGGESTIONS.map((suggestion) => (
+          {messages.length <= 1 && !busy && (
+            <View style={styles.promptSection}>
+              <AppText variant="caption" tone="muted" style={styles.promptLabel}>
+                Suggested questions
+              </AppText>
+              {SUGGESTED_QUESTIONS.map((question) => (
                 <Pressable
-                  key={suggestion}
+                  key={question}
                   accessibilityRole="button"
-                  disabled={ask.isPending}
-                  onPress={() => send(suggestion)}
-                  style={({ pressed }) => [styles.suggestion, pressed && { opacity: 0.7 }]}
+                  disabled={busy}
+                  onPress={() => void send(question)}
+                  style={({ pressed }) => [
+                    styles.promptCard,
+                    pressed && { opacity: 0.7 },
+                  ]}
                 >
-                  <AppText variant="tiny" style={{ color: colors.brandDark }}>
-                    {suggestion}
+                  <Ionicons name="chatbubble-outline" size={14} color={colors.brand} />
+                  <AppText variant="caption" style={styles.promptText}>
+                    {question}
                   </AppText>
+                  <Ionicons name="chevron-forward" size={14} color={colors.mutedLight} />
                 </Pressable>
               ))}
             </View>
-          </ScrollView>
-        </View>
+          )}
+        </ScrollView>
 
-        <View style={styles.inputBar}>
+        <View style={styles.inputContainer}>
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -192,23 +197,17 @@ export default function AssistantScreen() {
             placeholderTextColor={colors.mutedLight}
             style={styles.input}
             returnKeyType="send"
-            onSubmitEditing={() => send(draft)}
+            onSubmitEditing={() => void send(draft)}
+            editable={!busy}
             multiline
             maxLength={500}
           />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Send question"
-            disabled={!draft.trim() || ask.isPending}
-            onPress={() => send(draft)}
-            style={({ pressed }) => [
-              styles.send,
-              (!draft.trim() || ask.isPending) && styles.sendDisabled,
-              pressed && { opacity: 0.85 },
-            ]}
-          >
-            <Ionicons name="arrow-up" size={20} color={colors.onBrand} />
-          </Pressable>
+          <Button
+            title={busy ? '...' : 'Send'}
+            onPress={() => void send(draft)}
+            disabled={busy || !draft.trim()}
+            style={styles.button}
+          />
         </View>
 
         <View style={styles.disclaimer}>
@@ -217,12 +216,6 @@ export default function AssistantScreen() {
           </AppText>
         </View>
       </KeyboardAvoidingView>
-
-      {ask.isError && !ask.isPending ? (
-        <View style={styles.errorBar}>
-          <Notice tone="danger" title="Answer failed" message="Please try again." />
-        </View>
-      ) : null}
     </SafeAreaView>
   );
 }
@@ -250,74 +243,91 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  headerIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.brandSoft,
-  },
-  messages: {
-    padding: spacing.lg,
-    gap: spacing.md,
-    paddingBottom: spacing.xl,
+  messageContainer: { flex: 1 },
+  messageContent: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+    gap: spacing.sm,
   },
   bubbleWrap: { flexDirection: 'row' },
   bubbleLeft: { justifyContent: 'flex-start' },
   bubbleRight: { justifyContent: 'flex-end' },
+  assistantBubble: {
+    backgroundColor: colors.card,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+    borderBottomLeftRadius: 4,
+    maxWidth: '85%',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  assistantError: {
+    borderColor: colors.danger,
+    backgroundColor: colors.bg,
+  },
   patientBubble: {
     backgroundColor: colors.brand,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: radius.xl,
-    borderBottomRightRadius: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.lg,
+    borderBottomRightRadius: 4,
     maxWidth: '85%',
   },
-  suggestions: {
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  suggestionRow: { flexDirection: 'row', gap: spacing.sm },
-  suggestion: {
-    backgroundColor: colors.brandSoft,
-    borderWidth: 1,
-    borderColor: colors.brandMuted,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 9,
-    borderRadius: radius.pill,
-  },
-  inputBar: {
+  inputContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.sm,
   },
   input: {
     flex: 1,
-    minHeight: 46,
-    maxHeight: 120,
+    minHeight: 38,
+    maxHeight: 100,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.xl,
-    paddingHorizontal: spacing.lg,
-    paddingTop: 12,
-    paddingBottom: 12,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: 9,
+    paddingBottom: 9,
     fontFamily: fonts.regular,
-    fontSize: 15,
+    fontSize: 14,
     color: colors.text,
   },
-  send: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+  button: {
     backgroundColor: colors.brand,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  sendDisabled: { backgroundColor: colors.brandMuted },
-  disclaimer: { paddingHorizontal: spacing.xl, paddingBottom: spacing.sm },
-  errorBar: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
+  promptSection: {
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+  },
+  promptLabel: {
+    marginBottom: 4,
+    marginLeft: 4,
+  },
+  promptCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+  },
+  promptText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.brandDark,
+  },
+  disclaimer: {
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.sm,
+  },
 });

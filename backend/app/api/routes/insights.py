@@ -5,6 +5,7 @@ from app.models.patient import PatientProfile
 from app.schemas.insight import (
     AssistantAnswer,
     AssistantQuestion,
+    ChatRequest,
     DailyAssessment,
     PeriodReport,
 )
@@ -102,3 +103,41 @@ def ask_patient_assistant(
     return insights.answer_question(
         db, _linked_patient(db, current_user, patient_id), payload.question
     )
+
+
+@router.post(
+    "/caregivers/me/patients/{patient_id}/assistant/chat",
+    response_model=AssistantAnswer,
+    summary="RAG chat: retrieve patient data, answer with NVIDIA NIM",
+)
+async def caregiver_assistant_chat(
+    patient_id: int,
+    payload: ChatRequest,
+    current_user: CaregiverUser,
+    db: DbSession,
+) -> AssistantAnswer:
+    """Retrieval-Augmented Generation chat over the patient's dataset.
+
+    Retrieves the relevant rows (readings, adherence, windows, alerts),
+    builds a context block, and generates an answer with an NVIDIA NIM
+    model. Falls back to rule-based answers when no API key is set.
+    """
+    from app.services import ai_chat
+
+    patient = _linked_patient(db, current_user, patient_id)
+    history = [{"role": t.role, "content": t.content} for t in payload.messages]
+    return await ai_chat.ask(db, patient, history)
+
+
+@router.post(
+    "/patients/me/assistant/chat",
+    response_model=AssistantAnswer,
+    summary="RAG chat for the patient over their own data",
+)
+async def patient_assistant_chat(
+    payload: ChatRequest, current_user: PatientUser, db: DbSession
+) -> AssistantAnswer:
+    from app.services import ai_chat
+
+    history = [{"role": t.role, "content": t.content} for t in payload.messages]
+    return await ai_chat.ask(db, _profile(current_user), history)
