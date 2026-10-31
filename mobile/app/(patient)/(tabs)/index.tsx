@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
-import { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Brand, DeepHeader } from '@/components/Brand';
@@ -68,8 +67,7 @@ export default function PatientHomeScreen() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  const [autoReceive, setAutoReceive] = useState(true);
-  const autoInterval = autoReceive ? 30_000 : false;
+  const autoInterval = 30_000;
 
   const assessment = useQuery({
     queryKey: ['assessment'],
@@ -113,7 +111,7 @@ export default function PatientHomeScreen() {
   const unread = useQuery({
     queryKey: ['notifications', 'unread'],
     queryFn: notificationsApi.unreadCount,
-    refetchInterval: autoReceive ? 45_000 : false,
+    refetchInterval: 45_000,
   });
 
   const snooze = useMutation({
@@ -217,44 +215,14 @@ export default function PatientHomeScreen() {
       <DeepHeader style={[styles.deepBleed, { paddingTop: insets.top + spacing.md }]}>
         <View style={styles.headerTop}>
           <Brand size={36} color={colors.onDeep} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={autoReceive ? 'Auto-receive on' : 'Auto-receive off'}
-              onPress={() => setAutoReceive((v) => !v)}
-              style={({ pressed }) => [
-                {
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  paddingHorizontal: 10,
-                  paddingVertical: 6,
-                  borderRadius: 999,
-                  backgroundColor: autoReceive
-                    ? 'rgba(251,250,246,0.22)'
-                    : 'rgba(251,250,246,0.08)',
-                  opacity: pressed ? 0.7 : 1,
-                },
-              ]}
-            >
-              <Ionicons
-                name={autoReceive ? 'sync' : 'sync-outline'}
-                size={14}
-                color={colors.onDeep}
-              />
-              <AppText variant="tiny" style={{ color: colors.onDeep }}>
-                {autoReceive ? 'Auto' : 'Manual'}
-              </AppText>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open your profile"
-              onPress={() => router.push('/(patient)/(tabs)/profile')}
-              hitSlop={8}
-            >
-              <Avatar label={initials(user?.first_name ?? 'T', user?.last_name ?? 'C')} size={40} />
-            </Pressable>
-          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Open your profile"
+            onPress={() => router.push('/(patient)/(tabs)/profile')}
+            hitSlop={8}
+          >
+            <Avatar label={initials(user?.first_name ?? 'T', user?.last_name ?? 'C')} size={40} />
+          </Pressable>
         </View>
 
         <View style={{ gap: 6 }}>
