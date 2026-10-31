@@ -143,6 +143,18 @@ def create_reading(
 
     # A reading satisfies the measurement window it falls into (if any).
     close_windows_for_reading(db, reading)
+
+    # Best-effort: if this reading pushes the patient into critical risk,
+    # notify the patient and linked caregivers. Never break reading creation.
+    try:
+        from app.services import risk as risk_service
+
+        assessment = risk_service.assess_risk(db, patient)
+        if assessment.risk_level == "critical":
+            risk_service.notify_caregivers_of_critical_risk(db, patient, assessment)
+    except Exception:  # noqa: BLE001
+        pass
+
     return reading
 
 

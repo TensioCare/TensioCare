@@ -355,6 +355,12 @@ export const caregiversApi = {
       `/caregivers/me/patients/${patientId}/adherence${query({ days })}`,
     ),
 
+  /** Derived risk summary (level + score + trajectory) — no raw readings. */
+  risk: (patientId: number) =>
+    apiRequest<RiskPrediction>(
+      `/caregivers/me/patients/${patientId}/risk`,
+    ),
+
   /** RAG chat over the patient's dataset (NVIDIA NIM, rule-based fallback). */
   askChat: (patientId: number, messages: ChatMessage[]) =>
     apiRequest<AssistantAnswer>(`/caregivers/me/patients/${patientId}/assistant/chat`, {

@@ -13,6 +13,7 @@ Two entry points:
 
 from __future__ import annotations
 
+import json
 from datetime import timedelta
 from statistics import mean, pstdev
 
@@ -25,15 +26,19 @@ from app.core.bp import (
     fit_slope,
 )
 from app.core.timeutils import utcnow, to_naive_utc
+from app.models.caregiver import CaregiverPatient, CaregiverProfile
+from app.models.notification import Notification
 from app.models.patient import PatientProfile
 from app.models.reading import BloodPressureReading
+from app.models.risk_assessment import RiskAssessment as RiskAssessmentRow
 from app.models.user import User
 from app.schemas.insight import (
     FutureProjection,
     RiskAssessment,
     RiskPrediction,
 )
-from app.services.reminders import adherence_summary
+from app.services.notifications import notify
+from app.services.reminders import _ordered_links, adherence_summary
 
 MODEL_VERSION = "rules-v1.1"
 
@@ -204,12 +209,32 @@ def assess_risk(
         reasons.append("No concerning signals in the last 7 days.")
 
     recommendations = _recommendations(level, crisis_in_window)
+    classification = classify(systolic, diastolic).value
+
+    # Persist an audit row (best-effort; never break the read path).
+    try:
+        db.add(
+            RiskAssessmentRow(
+                patient_id=patient.id,
+                assessed_reading_id=latest.id,
+                risk_level=level,
+                risk_score=score,
+                classification=classification,
+                reasons=json.dumps(reasons, ensure_ascii=False),
+                recommendations=json.dumps(recommendations, ensure_ascii=False),
+                model_version=MODEL_VERSION,
+                readings_used=len(rows),
+            )
+        )
+        db.commit()
+    except Exception:  # noqa: BLE001
+        db.rollback()
 
     return RiskAssessment(
         generated_at=generated_at,
         risk_level=level,
         risk_score=score,
-        classification=classify(systolic, diastolic).value,
+        classification=classification,
         reasons=reasons,
         recommendations=recommendations,
         model_version=MODEL_VERSION,
@@ -217,6 +242,92 @@ def assess_risk(
         readings_used=len(rows),
         disclaimer=DISCLAIMER,
     )
+
+
+def anomalies(db: Session, patient: PatientProfile) -> dict:
+    """Detect suspicious/extreme/sudden readings in the last 30 days."""
+    rows = _readings(db, patient.id, 30)[-30:]
+    findings: list[dict] = []
+    for i, reading in enumerate(rows):
+        if reading.systolic <= reading.diastolic:
+            findings.append(
+                {
+                    "reading_id": reading.id,
+                    "kind": "suspicious_values",
+                    "message": "Systolic pressure is not above diastolic pressure.",
+                }
+            )
+        if (
+            reading.systolic < 70
+            or reading.systolic > 260
+            or reading.diastolic < 40
+            or reading.diastolic > 160
+            or (reading.pulse is not None and (reading.pulse < 25 or reading.pulse > 220))
+        ):
+            findings.append(
+                {
+                    "reading_id": reading.id,
+                    "kind": "extreme_value",
+                    "message": "This reading contains an extreme value and should be checked again.",
+                }
+            )
+        if i and abs(reading.systolic - rows[i - 1].systolic) >= 30:
+            findings.append(
+                {
+                    "reading_id": reading.id,
+                    "kind": "sudden_spike",
+                    "message": "The systolic pressure changed suddenly between measurements.",
+                }
+            )
+    return {
+        "count": len(findings),
+        "findings": findings,
+        "disclaimer": DISCLAIMER,
+    }
+
+
+def notify_caregivers_of_critical_risk(
+    db: Session, patient: PatientProfile, risk: RiskAssessment
+) -> None:
+    """Best-effort notification to linked caregivers when risk is critical."""
+    if risk.risk_level != "critical":
+        return
+    try:
+        links = _ordered_links(db, patient.id)
+    except Exception:  # noqa: BLE001
+        links = []
+    reason = risk.reasons[0] if risk.reasons else ""
+    for link in links:
+        try:
+            notify(
+                db,
+                user_id=link.caregiver.user_id,
+                type="risk_critical",
+                title=f"{patient.user.first_name if patient.user else 'Patient'} is at critical risk",
+                body=f"Risk score {risk.risk_score}/100. {reason}",
+                data={
+                    "patient_id": patient.id,
+                    "risk_level": risk.risk_level,
+                    "risk_score": risk.risk_score,
+                },
+            )
+        except Exception:  # noqa: BLE001
+            pass
+    try:
+        notify(
+            db,
+            user_id=patient.user_id,
+            type="risk_critical",
+            title="Critical risk detected",
+            body=f"Risk score {risk.risk_score}/100. {reason}",
+            data={"patient_id": patient.id, "risk_level": risk.risk_level},
+        )
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        db.commit()
+    except Exception:  # noqa: BLE001
+        db.rollback()
 
 
 def _recommendations(level: str, crisis: bool) -> list[str]:

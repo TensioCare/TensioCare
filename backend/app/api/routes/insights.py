@@ -154,6 +154,28 @@ async def caregiver_assistant_chat(
     return await ai_chat.ask(db, patient, history)
 
 
+@router.get(
+    "/patients/me/anomalies",
+    summary="Detect suspicious/extreme/sudden readings for the patient",
+)
+def my_anomalies(current_user: PatientUser, db: DbSession) -> dict:
+    from app.services import risk
+
+    return risk.anomalies(db, _profile(current_user))
+
+
+@router.get(
+    "/caregivers/me/patients/{patient_id}/anomalies",
+    summary="Detect suspicious/extreme/sudden readings for a linked patient",
+)
+def patient_anomalies(
+    patient_id: int, current_user: CaregiverUser, db: DbSession
+) -> dict:
+    from app.services import risk
+
+    return risk.anomalies(db, _linked_patient(db, current_user, patient_id))
+
+
 @router.post(
     "/patients/me/assistant/chat",
     response_model=AssistantAnswer,

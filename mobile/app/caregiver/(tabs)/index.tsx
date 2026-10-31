@@ -76,10 +76,17 @@ export default function CaregiverTodayScreen() {
     enabled: patientId !== undefined,
   });
 
+  const risk = useQuery({
+    queryKey: ['caregiver', patientId, 'risk'],
+    queryFn: () => caregiversApi.risk(patientId!),
+    enabled: patientId !== undefined,
+  });
+
   const refresh = () => {
     void patients.refetch();
     void windows.refetch();
     void adherence.refetch();
+    void risk.refetch();
   };
 
   if (patients.isLoading && !patients.data) {
@@ -214,6 +221,61 @@ export default function CaregiverTodayScreen() {
                   : 'No measurement times are scheduled for today.'}
             </AppText>
           </View>
+        </Card>
+
+        <Card style={{ gap: spacing.md }}>
+          <View style={styles.spread}>
+            <AppText variant="subtitle">Risk & outlook</AppText>
+            <AppText variant="tiny" tone="muted">
+              {risk.data
+                ? `${risk.data.current.risk_score}/100 · ${risk.data.current.risk_level}`
+                : '—'}
+            </AppText>
+          </View>
+          {risk.data ? (
+            <>
+              <AppText variant="bodyStrong" style={{ color: colors.brandDark }}>
+                {risk.data.current.risk_level === 'critical'
+                  ? 'Urgent attention needed'
+                  : risk.data.current.risk_level === 'high'
+                    ? 'High risk — follow up soon'
+                    : risk.data.current.risk_level === 'moderate'
+                      ? 'Moderate risk'
+                      : risk.data.current.risk_level === 'no_data'
+                        ? 'Not enough data yet'
+                        : 'Low risk'}
+              </AppText>
+              {risk.data.current.reasons.length ? (
+                <AppText variant="caption" tone="muted">
+                  {risk.data.current.reasons[0]}
+                </AppText>
+              ) : null}
+              {risk.data.projections.length ? (
+                <AppText variant="caption" tone="muted">
+                  {risk.data.direction === 'rising'
+                    ? `Rising ~${Math.abs(risk.data.slope_systolic_per_day ?? 0)} mmHg/day. ${
+                        risk.data.days_until_stage_2 !== null
+                          ? `Could reach stage 2 in ~${risk.data.days_until_stage_2} day(s).`
+                          : 'Keep measuring.'
+                      }`
+                    : risk.data.direction === 'falling'
+                      ? 'Trending down.'
+                      : 'Stable.'}
+                </AppText>
+              ) : null}
+              {risk.data.probability_of_missing_next_measurement !== null &&
+              risk.data.probability_of_missing_next_measurement >= 0.5 ? (
+                <AppText variant="caption" tone="muted">
+                  ~{Math.round(risk.data.probability_of_missing_next_measurement * 100)}%
+                  chance of a missed measurement.
+                </AppText>
+              ) : null}
+            </>
+          ) : (
+            <AppText variant="caption" tone="muted">
+              Loading risk assessment…
+            </AppText>
+          )}
         </Card>
 
         <View style={styles.spread}>
