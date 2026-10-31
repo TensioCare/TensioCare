@@ -56,6 +56,10 @@ export default function RootLayout() {
               headerTintColor: colors.text,
               headerTitleStyle: { fontWeight: '700' },
               headerShadowVisible: false,
+              animation: 'slide_from_right',
+              animationDuration: 260,
+              gestureEnabled: true,
+              gestureDirection: 'horizontal',
             }}
           >
             <Stack.Screen name="(auth)" />

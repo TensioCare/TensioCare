@@ -24,6 +24,10 @@ export default function ReadingLayout() {
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: colors.bg },
+        animation: 'slide_from_bottom',
+        animationDuration: 300,
+        gestureEnabled: true,
+        gestureDirection: 'vertical',
       }}
     >
       <Stack.Screen name="new" />

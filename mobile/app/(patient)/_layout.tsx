@@ -31,6 +31,9 @@ export default function PatientLayout() {
           headerTintColor: colors.text,
           headerTitleStyle: { fontWeight: '700' },
           headerShadowVisible: false,
+          animation: 'slide_from_right',
+          animationDuration: 260,
+          gestureEnabled: true,
         }}
       >
         <Stack.Screen name="(tabs)" />
