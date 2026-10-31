@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Animated } from 'react-native';
+import { Animated, Easing } from 'react-native';
 import Svg, { Polygon } from 'react-native-svg';
 
 import { colors } from '@/constants/theme';
@@ -35,13 +35,14 @@ export function Logo({
       Animated.parallel([
         Animated.timing(opacity, {
           toValue: 1,
-          duration: 600,
+          duration: 700,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.spring(scale, {
           toValue: 1,
-          friction: 6,
-          tension: 50,
+          friction: 5,
+          tension: 40,
           useNativeDriver: true,
         }),
       ]).start();
@@ -50,8 +51,8 @@ export function Logo({
       const loop = Animated.loop(
         Animated.timing(rotation, {
           toValue: 1,
-          duration: 1400,
-          easing: (t) => t,
+          duration: 1800,
+          easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
       );
