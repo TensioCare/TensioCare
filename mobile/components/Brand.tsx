@@ -62,7 +62,7 @@ export function Brand({
           letterSpacing: -0.4,
         }}
       >
-        TensioCare
+        TENSIOCARE
       </AppText>
     </View>
   );
