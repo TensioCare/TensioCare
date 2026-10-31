@@ -401,9 +401,7 @@ export function ErrorState({
 export function LoadingScreen({ label = 'Loading...' }: { label?: string }) {
   return (
     <View style={styles.loading}>
-      <Logo size={56} color={colors.brand} animate />
-      <ActivityIndicator size="small" color={colors.brand} style={{ marginTop: spacing.sm }} />
-      <AppText tone="muted">{label}</AppText>
+      <Logo size={64} color={colors.brand} animate spin />
     </View>
   );
 }

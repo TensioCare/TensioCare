@@ -19,33 +19,54 @@ export function Logo({
   size = 40,
   color = colors.brand,
   animate = false,
+  spin = false,
 }: {
   size?: number;
   color?: string;
   animate?: boolean;
+  spin?: boolean;
 }) {
-  const opacity = useRef(new Animated.Value(animate ? 0 : 1)).current;
-  const scale = useRef(new Animated.Value(animate ? 0.4 : 1)).current;
+  const opacity = useRef(new Animated.Value(animate || spin ? 0 : 1)).current;
+  const scale = useRef(new Animated.Value(animate || spin ? 0.4 : 1)).current;
+  const rotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    if (!animate) return;
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scale, {
-        toValue: 1,
-        friction: 6,
-        tension: 50,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [animate, opacity, scale]);
+    if (animate || spin) {
+      Animated.parallel([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 600,
+          useNativeDriver: true,
+        }),
+        Animated.spring(scale, {
+          toValue: 1,
+          friction: 6,
+          tension: 50,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    if (spin) {
+      const loop = Animated.loop(
+        Animated.timing(rotation, {
+          toValue: 1,
+          duration: 1400,
+          easing: (t) => t,
+          useNativeDriver: true,
+        }),
+      );
+      loop.start();
+      return () => loop.stop();
+    }
+  }, [animate, spin, opacity, scale, rotation]);
+
+  const rotate = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   return (
-    <Animated.View style={{ opacity, transform: [{ scale }] }}>
+    <Animated.View style={{ opacity, transform: [{ scale }, { rotate }] }}>
       <Svg
         width={size}
         height={size}
