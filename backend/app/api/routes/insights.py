@@ -8,6 +8,7 @@ from app.schemas.insight import (
     ChatRequest,
     DailyAssessment,
     PeriodReport,
+    RiskPrediction,
 )
 from app.services import insights
 from app.services.monitoring import ensure_caregiver_can_access, get_patient_or_404
@@ -36,6 +37,17 @@ def _linked_patient(
 )
 def my_daily_assessment(current_user: PatientUser, db: DbSession) -> DailyAssessment:
     return insights.daily_assessment(db, _profile(current_user))
+
+
+@router.get(
+    "/patients/me/risk",
+    response_model=RiskPrediction,
+    summary="Current danger (0-100) plus a forward-looking trajectory prediction",
+)
+def my_risk(current_user: PatientUser, db: DbSession) -> RiskPrediction:
+    from app.services import risk
+
+    return risk.predict_risk(db, _profile(current_user))
 
 
 @router.get(
@@ -71,6 +83,19 @@ def patient_daily_assessment(
     patient_id: int, current_user: CaregiverUser, db: DbSession
 ) -> DailyAssessment:
     return insights.daily_assessment(db, _linked_patient(db, current_user, patient_id))
+
+
+@router.get(
+    "/caregivers/me/patients/{patient_id}/risk",
+    response_model=RiskPrediction,
+    summary="Current danger (0-100) plus a forward-looking trajectory prediction",
+)
+def patient_risk(
+    patient_id: int, current_user: CaregiverUser, db: DbSession
+) -> RiskPrediction:
+    from app.services import risk
+
+    return risk.predict_risk(db, _linked_patient(db, current_user, patient_id))
 
 
 @router.get(

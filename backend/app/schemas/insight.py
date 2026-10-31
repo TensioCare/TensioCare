@@ -61,3 +61,47 @@ class ChatRequest(BaseModel):
     """Full conversation history ending with the latest user question."""
 
     messages: list[ChatTurn] = Field(min_length=1, max_length=40)
+
+
+class RiskAssessment(BaseModel):
+    """Current danger level for a patient (0-100 score + explainable reasons)."""
+
+    generated_at: datetime
+    risk_level: RiskLevel
+    risk_score: int = Field(ge=0, le=100)
+    classification: str
+    reasons: list[str] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
+    model_version: str
+    assessed_reading_id: int | None = None
+    readings_used: int
+    disclaimer: str
+
+
+class FutureProjection(BaseModel):
+    """Projected blood pressure at a given horizon."""
+
+    horizon_days: int
+    projected_systolic: float | None = None
+    projected_diastolic: float | None = None
+    projected_category: str | None = None
+    confidence: Literal["high", "moderate", "low", "insufficient_data"]
+
+
+class RiskPrediction(BaseModel):
+    """Current danger plus a forward-looking trajectory projection."""
+
+    generated_at: datetime
+    current: RiskAssessment
+    direction: Literal["rising", "stable", "falling"]
+    slope_systolic_per_day: float | None = None
+    slope_diastolic_per_day: float | None = None
+    variability_systolic: float | None = None
+    projections: list[FutureProjection] = Field(default_factory=list)
+    days_until_target_breach: int | None = None
+    days_until_stage_2: int | None = None
+    days_until_crisis: int | None = None
+    probability_of_missing_next_measurement: float | None = None
+    future_risk_level: RiskLevel
+    future_reasons: list[str] = Field(default_factory=list)
+    disclaimer: str

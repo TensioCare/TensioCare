@@ -69,3 +69,35 @@ def trend_from_averages(first_half: float, second_half: float) -> BPTrend:
     if delta >= TREND_THRESHOLD:
         return BPTrend.worsening
     return BPTrend.stable
+
+
+def line_slope(values: list[float]) -> float:
+    """Least-squares slope of ``values`` against their index (reference compat)."""
+    if len(values) < 2:
+        return 0.0
+    return fit_slope(list(range(len(values))), values)[0]
+
+
+def fit_slope(xs: list[float], ys: list[float]) -> tuple[float, float, float]:
+    """Least-squares linear fit ``y = intercept + slope * x``.
+
+    Returns ``(slope, intercept, r_squared)``. ``r_squared`` is clamped to
+    ``[0, 1]`` and is 0 when there is no variance. Used both for trend
+    detection and for projecting future values, where ``x`` is elapsed days.
+    """
+    n = len(xs)
+    if n < 2 or len(ys) != n:
+        return 0.0, (ys[0] if ys else 0.0), 0.0
+    xm = sum(xs) / n
+    ym = sum(ys) / n
+    sxx = sum((x - xm) ** 2 for x in xs)
+    sxy = sum((x - xm) * (y - ym) for x, y in zip(xs, ys))
+    if sxx == 0:
+        return 0.0, ym, 0.0
+    slope = sxy / sxx
+    intercept = ym - slope * xm
+    ss_res = sum((y - (intercept + slope * x)) ** 2 for x, y in zip(xs, ys))
+    ss_tot = sum((y - ym) ** 2 for y in ys)
+    r_squared = 1.0 - (ss_res / ss_tot) if ss_tot else 0.0
+    r_squared = max(0.0, min(1.0, r_squared))
+    return slope, intercept, r_squared
