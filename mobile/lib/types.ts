@@ -331,6 +331,16 @@ export interface PushDevice {
   last_seen_at: string;
 }
 
+export interface Device {
+  id: number;
+  serial_number: string;
+  label: string | null;
+  model: string | null;
+  is_active: boolean;
+  last_synced_at: string | null;
+  created_at: string;
+}
+
 export interface RegisterPayload {
   email: string;
   password: string;

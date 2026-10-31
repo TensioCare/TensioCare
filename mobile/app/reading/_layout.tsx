@@ -27,6 +27,8 @@ export default function ReadingLayout() {
       }}
     >
       <Stack.Screen name="new" />
+      <Stack.Screen name="choose" />
+      <Stack.Screen name="auto" />
       <Stack.Screen name="[id]" />
     </Stack>
   );

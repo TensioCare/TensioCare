@@ -104,7 +104,7 @@ export default function PatientTabsLayout() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Add a blood pressure reading"
-          onPress={() => router.push('/reading/new')}
+          onPress={() => router.push('/reading/choose')}
           style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
         >
           <Ionicons name="add" size={30} color={colors.onBrand} />

@@ -17,6 +17,7 @@ import type {
   PatientProfile,
   PeriodReport,
   PushDevice,
+  Device,
   RiskPrediction,
   RiskHistoryItem,
   Reading,
@@ -207,6 +208,19 @@ export const patientsApi = {
     apiRequest<void>(`/patients/me/caregivers/${caregiverId}`, {
       method: 'DELETE',
     }),
+};
+
+export const devicesApi = {
+  list: () => apiRequest<Device[]>('/patients/me/devices'),
+
+  register: (payload: { serial_number: string; label?: string | null; model?: string | null }) =>
+    apiRequest<Device>('/patients/me/devices', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  remove: (deviceId: number) =>
+    apiRequest<void>(`/patients/me/devices/${deviceId}`, { method: 'DELETE' }),
 };
 
 export const remindersApi = {
