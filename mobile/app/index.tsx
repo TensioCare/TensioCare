@@ -1,4 +1,5 @@
 import { Redirect, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,11 +8,21 @@ import { AppText, Button, LoadingScreen } from '@/components/ui';
 import { colors, fonts, spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth-context';
 
+// Keep the branded splash visible long enough for the logo animation to play
+// on every app open, even when the user is already authenticated.
+const SPLASH_DURATION_MS = 1500;
+
 export default function Index() {
   const { status, user } = useAuth();
   const router = useRouter();
+  const [showSplash, setShowSplash] = useState(true);
 
-  if (status === 'loading') {
+  useEffect(() => {
+    const timer = setTimeout(() => setShowSplash(false), SPLASH_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (status === 'loading' || showSplash) {
     return <LoadingScreen label="Opening TensioCare..." />;
   }
 
