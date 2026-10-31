@@ -158,7 +158,10 @@ export default function PatientHomeScreen() {
   }
 
   const data = assessment.data;
-  const risk = data?.risk_level ?? 'no_data';
+  // Single source of truth for the risk level: prefer the comprehensive
+  // risk engine (symptoms, trajectory, variability) and fall back to the
+  // daily assessment while it loads.
+  const risk = riskQuery.data?.current.risk_level ?? data?.risk_level ?? 'no_data';
   const palette = riskColors[risk] ?? riskColors.no_data;
   const badge = badgeOnDeep[risk] ?? badgeOnDeep.no_data;
   const latest = data?.latest_reading ?? null;
