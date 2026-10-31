@@ -79,6 +79,10 @@ export default function PatientHomeScreen() {
     queryKey: ['risk-history'],
     queryFn: () => insightsApi.riskHistory(8),
   });
+  const anomalies = useQuery({
+    queryKey: ['anomalies'],
+    queryFn: insightsApi.anomalies,
+  });
   const adherence = useQuery({
     queryKey: ['adherence', 7],
     queryFn: () => remindersApi.adherence(7),
@@ -114,6 +118,7 @@ export default function PatientHomeScreen() {
     void assessment.refetch();
     void riskQuery.refetch();
     void riskHistory.refetch();
+    void anomalies.refetch();
     void adherence.refetch();
     void windows.refetch();
     void profile.refetch();
@@ -417,6 +422,25 @@ export default function PatientHomeScreen() {
                 </AppText>
               </View>
             ))}
+          </Card>
+        ) : null}
+
+        {anomalies.data && anomalies.data.count > 0 ? (
+          <Card style={{ gap: spacing.sm }}>
+            <View style={styles.spread}>
+              <AppText variant="subtitle">Reading anomalies</AppText>
+              <AppText variant="tiny" tone="muted">
+                {anomalies.data.count} found
+              </AppText>
+            </View>
+            {anomalies.data.findings.slice(0, 3).map((f, i) => (
+              <AppText key={i} variant="caption" tone="muted">
+                · {f.message}
+              </AppText>
+            ))}
+            <AppText variant="caption" tone="muted" style={{ opacity: 0.7 }}>
+              {anomalies.data.disclaimer}
+            </AppText>
           </Card>
         ) : null}
 

@@ -84,6 +84,7 @@ export function ReadingFormScreen({ readingId }: { readingId?: number }) {
     void queryClient.invalidateQueries({ queryKey: ['assessment'] });
     void queryClient.invalidateQueries({ queryKey: ['risk'] });
     void queryClient.invalidateQueries({ queryKey: ['risk-history'] });
+    void queryClient.invalidateQueries({ queryKey: ['anomalies'] });
     void queryClient.invalidateQueries({ queryKey: ['adherence'] });
     void queryClient.invalidateQueries({ queryKey: ['reminder-windows'] });
   };

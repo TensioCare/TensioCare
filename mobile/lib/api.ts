@@ -272,6 +272,13 @@ export const insightsApi = {
   riskHistory: (limit = 10) =>
     apiRequest<RiskHistoryItem[]>(`/patients/me/risk/history${query({ limit })}`),
 
+  anomalies: () =>
+    apiRequest<{
+      count: number;
+      findings: { reading_id: number; kind: string; message: string }[];
+      disclaimer: string;
+    }>('/patients/me/anomalies'),
+
   report: (days = 15) =>
     apiRequest<PeriodReport>(`/patients/me/reports/15-day${query({ days })}`),
 
@@ -364,6 +371,14 @@ export const caregiversApi = {
     apiRequest<RiskPrediction>(
       `/caregivers/me/patients/${patientId}/risk`,
     ),
+
+  /** Derived anomaly summary — no raw readings. */
+  anomalies: (patientId: number) =>
+    apiRequest<{
+      count: number;
+      findings: { reading_id: number; kind: string; message: string }[];
+      disclaimer: string;
+    }>(`/caregivers/me/patients/${patientId}/anomalies`),
 
   /** RAG chat over the patient's dataset (NVIDIA NIM, rule-based fallback). */
   askChat: (patientId: number, messages: ChatMessage[]) =>

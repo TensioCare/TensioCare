@@ -82,11 +82,18 @@ export default function CaregiverTodayScreen() {
     enabled: patientId !== undefined,
   });
 
+  const anomalies = useQuery({
+    queryKey: ['caregiver', patientId, 'anomalies'],
+    queryFn: () => caregiversApi.anomalies(patientId!),
+    enabled: patientId !== undefined,
+  });
+
   const refresh = () => {
     void patients.refetch();
     void windows.refetch();
     void adherence.refetch();
     void risk.refetch();
+    void anomalies.refetch();
   };
 
   if (patients.isLoading && !patients.data) {
@@ -277,6 +284,22 @@ export default function CaregiverTodayScreen() {
             </AppText>
           )}
         </Card>
+
+        {anomalies.data && anomalies.data.count > 0 ? (
+          <Card style={{ gap: spacing.sm }}>
+            <View style={styles.spread}>
+              <AppText variant="subtitle">Reading anomalies</AppText>
+              <AppText variant="tiny" tone="muted">
+                {anomalies.data.count} found
+              </AppText>
+            </View>
+            {anomalies.data.findings.slice(0, 3).map((f, i) => (
+              <AppText key={i} variant="caption" tone="muted">
+                · {f.message}
+              </AppText>
+            ))}
+          </Card>
+        ) : null}
 
         <View style={styles.spread}>
           <AppText variant="subtitle">Today's checklist</AppText>
