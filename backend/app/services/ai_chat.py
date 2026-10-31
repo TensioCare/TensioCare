@@ -48,9 +48,15 @@ Retrieved patient dataset (JSON):
 {context}
 
 Rules:
-- Answer in English, 1-4 short sentences. Plain prose, no bullet lists.
+- Think briefly, then answer in English, in 1-4 short sentences. Plain prose,
+  no bullet lists.
+- Output plain ASCII text only: no markdown, no **bold**, no asterisks, no
+  headings. Use regular hyphens and regular spaces, never special Unicode
+  characters such as non-breaking hyphens or narrow spaces.
 - Use ONLY numbers present in the dataset above. Never invent or estimate \
 readings, dates or percentages that are not there.
+- The context lists exactly one patient, so questions like "how is his \
+health" refer to that patient. Never ask who you mean.
 - If the dataset does not contain the answer, say exactly what is missing.
 - For emergencies, medication changes or diagnosis, advise contacting the \
 patient's clinician or emergency services. You are not a doctor.
@@ -239,8 +245,58 @@ def augment(data: RetrievedData) -> str:
 # 3. GENERATE
 # ---------------------------------------------------------------------------
 
+def _clean(text: str) -> str:
+    """Normalise model output for a plain-text RN UI.
+
+    Models occasionally emit markdown or typographic Unicode even when told
+    not to, which renders as literal asterisks or odd glyphs in the app.
+    """
+    import re
+    import unicodedata
+
+    # Strip markdown emphasis/headers/code fences.
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"(?<!\w)[*_]{1,3}|[*_]{1,3}(?!\w)", "", text)
+    text = re.sub(r"^#{1,6}\s*", "", text, flags=re.MULTILINE)
+    text = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
+
+    # Fold typographic punctuation back to ASCII equivalents.
+    replacements = {
+        "\u2011": "-",   # non-breaking hyphen
+        "\u2010": "-",   # hyphen
+        "\u2012": "-",   # figure dash
+        "\u2013": "-",   # en dash
+        "\u2014": " - ",  # em dash
+        "\u2018": "'", "\u2019": "'",  # single quotes
+        "\u201c": '"', "\u201d": '"',  # double quotes
+        "\u00a0": " ",   # nbsp
+        "\u202f": " ",   # narrow nbsp
+        "\u2009": " ",   # thin space
+        "\u200b": "",    # zero-width space
+        "\u00ad": "",    # soft hyphen
+        "\u2212": "-",   # minus sign
+        "\u00b7": ".",   # middle dot
+    }
+    for bad, good in replacements.items():
+        text = text.replace(bad, good)
+
+    # Drop any other non-ASCII that survived (except common accented letters).
+    text = "".join(
+        ch
+        for ch in text
+        if ord(ch) < 128 or unicodedata.category(ch).startswith("L")
+    )
+
+    return re.sub(r"\s+", " ", text).strip()
+
+
 async def _generate(system: str, history: list[dict[str, str]]) -> str | None:
-    """Call NVIDIA NIM. Returns the text or None on failure."""
+    """Call NVIDIA NIM. Returns the text or None on failure.
+
+    The available NIM models are reasoning models: they emit an internal
+    ``reasoning`` trace before ``content``, so the token budget must leave
+    room for both or the answer comes back empty.
+    """
     async with httpx.AsyncClient(timeout=settings.nvidia_timeout_seconds) as client:
         response = await client.post(
             f"{settings.nvidia_base_url}/chat/completions",
@@ -253,13 +309,20 @@ async def _generate(system: str, history: list[dict[str, str]]) -> str | None:
                 "messages": [{"role": "system", "content": system}, *history],
                 "temperature": 0.2,
                 "top_p": 0.9,
-                "max_tokens": 300,
+                "max_tokens": 3000,
                 "stream": False,
             },
         )
         response.raise_for_status()
         body = response.json()
-    return body["choices"][0]["message"]["content"].strip()
+
+    message = body["choices"][0]["message"]
+    content = (message.get("content") or "").strip()
+
+    # Never return reasoning_content: on reasoning models it is the raw
+    # thinking trace, not an answer. An empty content means the model ran
+    # out of budget, so signal failure and let the caller fall back.
+    return content or None
 
 
 # ---------------------------------------------------------------------------
@@ -310,6 +373,10 @@ async def ask(
         logger.exception("NVIDIA NIM call failed; using fallback")
         return _fallback(db, patient, question or "help")
 
+    if not answer:
+        return _fallback(db, patient, question or "help")
+
+    answer = _clean(answer)
     if not answer:
         return _fallback(db, patient, question or "help")
 
