@@ -58,6 +58,7 @@ export function ReadingFormScreen({ readingId }: { readingId?: number }) {
   const [pulse, setPulse] = useState('');
   const [resting, setResting] = useState('');
   const [notes, setNotes] = useState('');
+  const [symptoms, setSymptoms] = useState<string[]>([]);
   const [arm, setArm] = useState<Arm | null>(null);
   const [position, setPosition] = useState<Position | null>(null);
   const [measuredAt, setMeasuredAt] = useState(new Date());
@@ -71,6 +72,7 @@ export function ReadingFormScreen({ readingId }: { readingId?: number }) {
     setPulse(existing.pulse?.toString() ?? '');
     setResting(existing.resting_minutes?.toString() ?? '');
     setNotes(existing.notes ?? '');
+    setSymptoms(existing.symptoms ?? []);
     setArm(existing.arm);
     setPosition(existing.position);
     setMeasuredAt(new Date(existing.measured_at));
@@ -80,6 +82,7 @@ export function ReadingFormScreen({ readingId }: { readingId?: number }) {
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ['readings'] });
     void queryClient.invalidateQueries({ queryKey: ['assessment'] });
+    void queryClient.invalidateQueries({ queryKey: ['risk'] });
     void queryClient.invalidateQueries({ queryKey: ['adherence'] });
     void queryClient.invalidateQueries({ queryKey: ['reminder-windows'] });
   };
@@ -127,6 +130,7 @@ export function ReadingFormScreen({ readingId }: { readingId?: number }) {
         pulse: pulseValue,
         measured_at: measuredAt.toISOString(),
         notes: notes.trim() || null,
+        symptoms,
         arm,
         position,
         resting_minutes: restingValue,
@@ -320,6 +324,40 @@ export function ReadingFormScreen({ readingId }: { readingId?: number }) {
               selected={position === 'lying'}
               onPress={() => setPosition(position === 'lying' ? null : 'lying')}
             />
+          </View>
+        </View>
+
+        <View style={{ gap: 8 }}>
+          <AppText variant="label">Symptoms (optional)</AppText>
+          <AppText variant="caption" tone="muted">
+            Tap any that apply. Chest pain, severe headache, shortness of
+            breath, fainting, vision problems or one-sided weakness trigger an
+            urgent alert.
+          </AppText>
+          <View style={styles.chips}>
+            {[
+              'chest pain',
+              'severe headache',
+              'shortness of breath',
+              'fainting',
+              'vision problems',
+              'weakness on one side',
+              'dizziness',
+              'nausea',
+            ].map((item) => (
+              <Chip
+                key={item}
+                label={item}
+                selected={symptoms.includes(item)}
+                onPress={() =>
+                  setSymptoms((prev) =>
+                    prev.includes(item)
+                      ? prev.filter((s) => s !== item)
+                      : [...prev, item],
+                  )
+                }
+              />
+            ))}
           </View>
         </View>
 

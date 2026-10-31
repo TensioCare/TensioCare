@@ -85,6 +85,7 @@ export interface Reading {
   measured_at: string;
   device_id: number | null;
   notes: string | null;
+  symptoms: string[];
   source: string;
   arm: Arm | null;
   position: Position | null;
@@ -200,6 +201,44 @@ export interface DailyAssessment {
   trend_7_days: BPTrend;
 }
 
+export interface FutureProjection {
+  horizon_days: number;
+  projected_systolic: number | null;
+  projected_diastolic: number | null;
+  projected_category: string | null;
+  confidence: 'high' | 'moderate' | 'low' | 'insufficient_data';
+}
+
+export interface RiskAssessment {
+  generated_at: string;
+  risk_level: RiskLevel;
+  risk_score: number;
+  classification: string;
+  reasons: string[];
+  recommendations: string[];
+  model_version: string;
+  assessed_reading_id: number | null;
+  readings_used: number;
+  disclaimer: string;
+}
+
+export interface RiskPrediction {
+  generated_at: string;
+  current: RiskAssessment;
+  direction: 'rising' | 'stable' | 'falling';
+  slope_systolic_per_day: number | null;
+  slope_diastolic_per_day: number | null;
+  variability_systolic: number | null;
+  projections: FutureProjection[];
+  days_until_target_breach: number | null;
+  days_until_stage_2: number | null;
+  days_until_crisis: number | null;
+  probability_of_missing_next_measurement: number | null;
+  future_risk_level: RiskLevel;
+  future_reasons: string[];
+  disclaimer: string;
+}
+
 export interface PeriodReport {
   period_days: number;
   generated_at: string;
@@ -304,6 +343,7 @@ export interface ReadingCreatePayload {
   pulse?: number | null;
   measured_at?: string;
   notes?: string | null;
+  symptoms?: string[];
   arm?: Arm | null;
   position?: Position | null;
   resting_minutes?: number | null;
@@ -316,6 +356,7 @@ export interface ReadingUpdatePayload {
   pulse?: number | null;
   measured_at?: string;
   notes?: string | null;
+  symptoms?: string[] | null;
   arm?: Arm | null;
   position?: Position | null;
   resting_minutes?: number | null;

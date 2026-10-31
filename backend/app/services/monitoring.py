@@ -114,6 +114,7 @@ def create_reading(
         pulse=payload.pulse,
         measured_at=measured_at,
         notes=payload.notes,
+        symptoms=", ".join(payload.symptoms) if payload.symptoms else None,
         source="device" if device else "manual",
         arm=payload.arm,
         position=payload.position,
@@ -189,6 +190,11 @@ def update_reading(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="systolic must be greater than diastolic",
+        )
+
+    if "symptoms" in changes and changes["symptoms"] is not None:
+        changes["symptoms"] = (
+            ", ".join(changes["symptoms"]) if changes["symptoms"] else None
         )
 
     for field, value in changes.items():

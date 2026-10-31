@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core.bp import BPCategory, BPTrend
 
@@ -18,6 +18,7 @@ class ReadingCreate(BaseModel):
     )
     device_serial: str | None = Field(default=None, max_length=120)
     notes: str | None = None
+    symptoms: list[str] = Field(default_factory=list)
     arm: Arm | None = None
     position: Position | None = None
     resting_minutes: int | None = Field(default=None, ge=0, le=180)
@@ -40,6 +41,7 @@ class ReadingUpdate(BaseModel):
     pulse: int | None = Field(default=None, ge=20, le=250)
     measured_at: datetime | None = None
     notes: str | None = None
+    symptoms: list[str] | None = None
     arm: Arm | None = None
     position: Position | None = None
     resting_minutes: int | None = Field(default=None, ge=0, le=180)
@@ -48,6 +50,17 @@ class ReadingUpdate(BaseModel):
 class ReadingRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    @field_validator("symptoms", mode="before")
+    @classmethod
+    def _split_symptoms(cls, value):
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            return [s.strip() for s in value.split(",") if s.strip()]
+        return value
+
     id: int
     systolic: int
     diastolic: int
@@ -55,6 +68,7 @@ class ReadingRead(BaseModel):
     measured_at: datetime
     device_id: int | None = None
     notes: str | None = None
+    symptoms: list[str] = Field(default_factory=list)
     source: str
     arm: Arm | None = None
     position: Position | None = None

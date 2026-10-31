@@ -47,6 +47,10 @@ class BloodPressureReading(Base):
         DateTime(timezone=True), nullable=False
     )
     notes: Mapped[str | None] = mapped_column(Text)
+    # Comma-separated symptom labels (e.g. "chest pain, severe headache").
+    # Stored as text to match the reference model; parsed into a list by the
+    # schema. Used by the risk engine (+35 for emergency symptoms).
+    symptoms: Mapped[str | None] = mapped_column(Text)
     source: Mapped[str] = mapped_column(String(20), default="device", nullable=False)
 
     # Measurement context (all optional, useful for device sync and manual entry).
@@ -74,3 +78,9 @@ class BloodPressureReading(Base):
     @property
     def mean_arterial_pressure(self) -> float:
         return mean_arterial_pressure(self.systolic, self.diastolic)
+
+    @property
+    def symptoms_list(self) -> list[str]:
+        if not self.symptoms:
+            return []
+        return [s.strip() for s in self.symptoms.split(",") if s.strip()]

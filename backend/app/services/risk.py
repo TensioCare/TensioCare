@@ -85,8 +85,18 @@ def assess_risk(
     symptoms: list[str] | None = None,
 ) -> RiskAssessment:
     """Compute the current danger level for a patient."""
-    symptom_set = {s.strip().lower() for s in (symptoms or []) if s.strip()}
     rows = _readings(db, patient.id, 7)
+
+    if symptoms is None:
+        latest_for_symptoms = rows[-1] if rows else None
+        symptom_source = (
+            latest_for_symptoms.symptoms_list
+            if latest_for_symptoms is not None
+            else []
+        )
+    else:
+        symptom_source = symptoms
+    symptom_set = {s.strip().lower() for s in symptom_source if s.strip()}
     generated_at = utcnow()
 
     if not rows:

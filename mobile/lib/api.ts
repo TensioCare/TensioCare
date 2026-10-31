@@ -17,6 +17,7 @@ import type {
   PatientProfile,
   PeriodReport,
   PushDevice,
+  RiskPrediction,
   Reading,
   ReadingAnalysis,
   ReadingCreatePayload,
@@ -264,6 +265,8 @@ export const readingsApi = {
 
 export const insightsApi = {
   assessment: () => apiRequest<DailyAssessment>('/patients/me/assessment'),
+
+  risk: () => apiRequest<RiskPrediction>('/patients/me/risk'),
 
   report: (days = 15) =>
     apiRequest<PeriodReport>(`/patients/me/reports/15-day${query({ days })}`),

@@ -71,6 +71,10 @@ export default function PatientHomeScreen() {
     queryKey: ['assessment'],
     queryFn: insightsApi.assessment,
   });
+  const riskQuery = useQuery({
+    queryKey: ['risk'],
+    queryFn: insightsApi.risk,
+  });
   const adherence = useQuery({
     queryKey: ['adherence', 7],
     queryFn: () => remindersApi.adherence(7),
@@ -104,6 +108,7 @@ export default function PatientHomeScreen() {
 
   const refresh = () => {
     void assessment.refetch();
+    void riskQuery.refetch();
     void adherence.refetch();
     void windows.refetch();
     void profile.refetch();
@@ -338,6 +343,61 @@ export default function PatientHomeScreen() {
             </AppText>
           </Card>
         </View>
+
+        <Card style={{ gap: spacing.md }}>
+          <View style={styles.spread}>
+            <AppText variant="subtitle">Risk & outlook</AppText>
+            <AppText variant="tiny" tone="muted">
+              {riskQuery.data
+                ? `${riskQuery.data.current.risk_score}/100 · ${riskQuery.data.current.risk_level}`
+                : '—'}
+            </AppText>
+          </View>
+          {riskQuery.data ? (
+            <>
+              <AppText variant="bodyStrong" style={{ color: colors.brandDark }}>
+                {riskQuery.data.current.risk_level === 'critical'
+                  ? 'Urgent attention needed'
+                  : riskQuery.data.current.risk_level === 'high'
+                    ? 'High risk — follow up soon'
+                    : riskQuery.data.current.risk_level === 'moderate'
+                      ? 'Moderate risk'
+                      : riskQuery.data.current.risk_level === 'no_data'
+                        ? 'Not enough data yet'
+                        : 'Low risk — keep going'}
+              </AppText>
+              {riskQuery.data.current.reasons.length ? (
+                <AppText variant="caption" tone="muted">
+                  {riskQuery.data.current.reasons[0]}
+                </AppText>
+              ) : null}
+              {riskQuery.data.projections.length ? (
+                <AppText variant="caption" tone="muted">
+                  {riskQuery.data.direction === 'rising'
+                    ? `Rising ~${Math.abs(riskQuery.data.slope_systolic_per_day ?? 0)} mmHg/day. ${
+                        riskQuery.data.days_until_stage_2 !== null
+                          ? `Could reach stage 2 in ~${riskQuery.data.days_until_stage_2} day(s).`
+                          : 'Keep measuring.'
+                      }`
+                    : riskQuery.data.direction === 'falling'
+                      ? 'Trending down — keep it up.'
+                      : 'Stable. Keep your routine.'}
+                </AppText>
+              ) : null}
+              {riskQuery.data.probability_of_missing_next_measurement !== null &&
+              riskQuery.data.probability_of_missing_next_measurement >= 0.5 ? (
+                <AppText variant="caption" tone="muted">
+                  ~{Math.round(riskQuery.data.probability_of_missing_next_measurement * 100)}%
+                  chance of missing the next measurement.
+                </AppText>
+              ) : null}
+            </>
+          ) : (
+            <AppText variant="caption" tone="muted">
+              Loading risk assessment…
+            </AppText>
+          )}
+        </Card>
 
         <Card style={{ gap: spacing.md }}>
           <View style={styles.spread}>
