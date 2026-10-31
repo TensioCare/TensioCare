@@ -17,6 +17,7 @@ import {
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 
 import { colors, fonts, radius, shadows, spacing } from '@/constants/theme';
+import { Logo } from '@/components/Logo';
 
 export type IconName = keyof typeof Ionicons.glyphMap;
 export type TextTone =
@@ -400,7 +401,8 @@ export function ErrorState({
 export function LoadingScreen({ label = 'Loading...' }: { label?: string }) {
   return (
     <View style={styles.loading}>
-      <ActivityIndicator size="large" color={colors.brand} />
+      <Logo size={56} color={colors.brand} animate />
+      <ActivityIndicator size="small" color={colors.brand} style={{ marginTop: spacing.sm }} />
       <AppText tone="muted">{label}</AppText>
     </View>
   );

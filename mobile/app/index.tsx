@@ -28,7 +28,7 @@ export default function Index() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.hero}>
-          <Brand size={44} color={colors.onDeep} />
+          <Brand size={44} color={colors.onDeep} animate />
           <View style={styles.heroText}>
             <AppText
               style={{
