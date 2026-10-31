@@ -369,6 +369,7 @@ export interface ReadingCreatePayload {
   position?: Position | null;
   resting_minutes?: number | null;
   client_reading_id?: string;
+  device_serial?: string | null;
 }
 
 export interface ReadingUpdatePayload {

@@ -9,7 +9,11 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.tensiocare.app"
+      "bundleIdentifier": "com.tensiocare.app",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "TensioCare uses Bluetooth to receive blood pressure readings from your monitor.",
+        "NSBluetoothPeripheralUsageDescription": "TensioCare uses Bluetooth to receive blood pressure readings from your monitor."
+      }
     },
     "android": {
       "package": "com.tensiocare.app",
@@ -19,7 +23,14 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -45,7 +56,8 @@
           "defaultChannel": "measurements"
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "react-native-ble-plx"
     ],
     "experiments": {
       "typedRoutes": true
